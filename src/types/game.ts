@@ -10,6 +10,7 @@ export interface Player {
   achievements: Achievement[];
   level: number;
   experience: number;
+  roomId?: string;
 }
 
 export interface Character {
@@ -121,6 +122,11 @@ export interface Room {
   status: 'waiting' | 'voting' | 'playing' | 'finished';
   maxPlayers: number;
   createdAt: Date;
+  selectedGenre?: string;
+  hostPlayerId?: string;
+  currentStage?: number;
+  maxStages?: number;
+  isGameActive?: boolean;
 }
 
 export interface Message {
@@ -155,6 +161,14 @@ export interface StoryStage {
   stage: number;
   description: string;
   choices: StoryChoice[];
+  selectedChoice?: {
+    choiceId: number;
+    choiceText: string;
+    dc: number;
+  };
+  diceRoll?: number;
+  diceResult?: 'success' | 'failure';
+  stageCompletedAt?: Date;
 }
 
 export interface StoryChoice {

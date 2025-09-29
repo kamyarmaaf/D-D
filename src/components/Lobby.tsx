@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Users, Plus, Hash, QrCode, Wand2, Clock, Search, Ghost, Smile, Rocket, Crown } from 'lucide-react';
 import { useLanguage } from '../hooks/useLanguage';
 import { QRCodeGenerator } from './QRCodeGenerator';
 import InfoBanner from './InfoBanner';
 import { Genre } from '../types/game';
+import { useEnhancedGameStore } from '../store/enhancedGameStore';
 
 interface LobbyProps {
   onJoinRoom: (code: string, nickname: string, genre?: Genre) => void;
@@ -12,11 +13,39 @@ interface LobbyProps {
 export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
   const [nickname, setNickname] = useState('');
   const [roomCode, setRoomCode] = useState('');
-  const [showCreateRoom, setShowCreateRoom] = useState(false);
   const [createdRoomCode, setCreatedRoomCode] = useState('');
   const [showGenreSelection, setShowGenreSelection] = useState(false);
-  const [selectedGenre, setSelectedGenre] = useState<Genre | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { t } = useLanguage();
+
+  const {
+    initializeDatabase,
+    createRoom,
+    joinRoom
+  } = useEnhancedGameStore();
+
+  // Initialize database on component mount
+  useEffect(() => {
+    const init = async () => {
+      try {
+        await initializeDatabase();
+        console.log('Database initialized in Lobby');
+        
+        // Debug: Check if database exists in localStorage
+        const dbData = localStorage.getItem('dnd_bolt.db');
+        if (dbData) {
+          console.log('Database found in localStorage:', dbData.length, 'characters');
+        } else {
+          console.log('No database found in localStorage');
+        }
+      } catch (error) {
+        console.error('Failed to initialize database:', error);
+        setError('Failed to initialize database. Please refresh the page.');
+      }
+    };
+    init();
+  }, [initializeDatabase]);
 
   const genres: { id: Genre; icon: React.ReactNode; color: string; name: string; description: string }[] = [
     { id: 'fantasy', icon: <Wand2 className="h-5 w-5 sm:h-6 sm:w-6" />, color: 'from-amber-500 to-yellow-600', name: 'Fantasy', description: 'Magic & Dragons' },
@@ -30,24 +59,95 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
 
   const generateRoomCode = () => {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    console.log('Generated room code:', code);
     setCreatedRoomCode(code);
-    setShowCreateRoom(true);
     return code;
   };
 
-  const handleCreateRoom = () => {
+  const handleCreateRoom = async () => {
     if (!nickname.trim()) return;
-    const code = generateRoomCode();
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const code = generateRoomCode();
+      console.log('Generated room code:', code);
+      console.log('Code type:', typeof code);
+      console.log('Code length:', code ? code.length : 'undefined');
+      
+      // Validate code
+      if (!code || code.trim() === '') {
+        throw new Error('Failed to generate room code');
+      }
+      
+      // Create host player
+      const hostPlayer = {
+        id: `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        nickname: nickname.trim(),
+        age: 25, // Default age, could be made configurable
+        genre: 'Fantasy' as const,
+        score: 0,
+        titles: [],
+        isHost: true,
+        level: 1,
+        experience: 0
+      };
+
+      console.log('Host player data:', hostPlayer);
+      console.log('Calling createRoom with:', { code, genre: 'fantasy', hostPlayer });
+
+      // Create room in database using the correct method
+      await createRoom(code, 'fantasy', hostPlayer);
+      
+      console.log('Room created successfully');
+    } catch (error) {
+      console.error('Failed to create room:', error);
+      setError('Failed to create room. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGenreSelect = (genre: Genre) => {
-    setSelectedGenre(genre);
     onJoinRoom(createdRoomCode, nickname, genre);
   };
 
-  const handleJoinRoom = () => {
+  const handleJoinRoom = async () => {
     if (!nickname.trim() || !roomCode.trim()) return;
-    onJoinRoom(roomCode.toUpperCase(), nickname);
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // Create player
+      const player = {
+        id: `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        nickname: nickname.trim(),
+        age: 25, // Default age, could be made configurable
+        genre: 'Fantasy' as const,
+        score: 0,
+        titles: [],
+        isHost: false,
+        level: 1,
+        experience: 0
+      };
+
+      // Join room
+      const room = await joinRoom(roomCode.toUpperCase(), player);
+      
+      if (room) {
+        onJoinRoom(roomCode.toUpperCase(), nickname, room.selectedGenre as Genre);
+        console.log('Successfully joined room:', room);
+      } else {
+        setError('Room not found. Please check the room code.');
+      }
+    } catch (error) {
+      console.error('Failed to join room:', error);
+      setError('Failed to join room. Please check the room code and try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleQuickStart = () => {
@@ -61,6 +161,27 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
       setShowGenreSelection(true);
     }
   };
+
+  // Show error if any
+  if (error) {
+    return (
+      <div className="max-w-4xl mx-auto px-2 sm:px-0">
+        <div className="text-center mb-6 sm:mb-8 lg:mb-10">
+          <div className="bg-red-900/20 border border-red-500/30 rounded-2xl p-8 backdrop-blur-sm">
+            <div className="text-red-400 text-6xl mb-4">⚠️</div>
+            <h2 className="text-2xl font-bold text-white mb-4">خطا</h2>
+            <p className="text-red-200 mb-6">{error}</p>
+            <button
+              onClick={() => setError(null)}
+              className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl font-medium transition-colors"
+            >
+              تلاش مجدد
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (showGenreSelection && createdRoomCode) {
     return (
@@ -197,13 +318,17 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
 
             <button
               onClick={handleCreateRoom}
-              disabled={!nickname.trim()}
+              disabled={!nickname.trim() || isLoading}
               className="group relative w-full mystical-button py-4 px-6 sm:py-5 sm:px-8 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 active:scale-95 text-base overflow-hidden"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
               <div className="relative flex items-center justify-center space-x-2">
-                <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" />
-                <span>{t('lobby.createRoom')}</span>
+                {isLoading ? (
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                ) : (
+                  <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" />
+                )}
+                <span>{isLoading ? 'Creating...' : t('lobby.createRoom')}</span>
               </div>
             </button>
           </div>
@@ -322,13 +447,17 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
 
             <button
               onClick={handleJoinRoom}
-              disabled={!nickname.trim() || !roomCode.trim()}
+              disabled={!nickname.trim() || !roomCode.trim() || isLoading}
               className="group relative w-full mystical-button py-4 px-6 sm:py-5 sm:px-8 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 active:scale-95 text-base overflow-hidden"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
               <div className="relative flex items-center justify-center space-x-2">
-                <Users className="h-5 w-5 group-hover:scale-110 transition-transform duration-300" />
-                <span>{t('lobby.joinRoom')}</span>
+                {isLoading ? (
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                ) : (
+                  <Users className="h-5 w-5 group-hover:scale-110 transition-transform duration-300" />
+                )}
+                <span>{isLoading ? 'Joining...' : t('lobby.joinRoom')}</span>
               </div>
             </button>
           </div>
