@@ -71,10 +71,6 @@ export const TTSConfiguration: React.FC<TTSConfigurationProps> = ({
     onClose();
   };
 
-  const handleReset = () => {
-    setLocalConfig(config);
-    setValidationResult(null);
-  };
 
   if (!isOpen) return null;
 

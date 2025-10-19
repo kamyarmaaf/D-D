@@ -4,18 +4,18 @@
 
 /* Storytelling Game Theme */
 :root {
-  --parchment: #f4f1e8;
-  --parchment-dark: #e8e0d0;
-  --ink: #2d1b0e;
-  --ink-light: #4a3424;
-  --ink-muted: #6b4e3a;
-  --gold: #d4af37;
-  --gold-dark: #b8941f;
-  --crimson: #ff6b6b;
-  --forest: #185D34;
-  --mystic: #4a148c;
-  --shadow: rgba(0, 0, 0, 0.4);
-  --glow: rgba(212, 175, 55, 0.4);
+  --parchment: #f9f7f0;
+  --parchment-dark: #f0ebe0;
+  --ink: #1a0f08;
+  --ink-light: #2d1b0e;
+  --ink-muted: #4a3424;
+  --gold: #b8941f;
+  --gold-dark: #9a7d1a;
+  --crimson: #dc2626;
+  --forest: #14532d;
+  --mystic: #5b21b6;
+  --shadow: rgba(0, 0, 0, 0.6);
+  --glow: rgba(184, 148, 31, 0.5);
 }
 
 /* Dark mode variables */
@@ -31,7 +31,7 @@
   --forest: #011A04;
   --mystic: #a855f7;
   --shadow: rgba(0, 0, 0, 0.95);
-  --glow: rgba(212, 175, 55, 0.9);
+  --glow: rgba(212, 175, 55, 0.4);
 }
 
 /* Basic styles */
@@ -91,8 +91,10 @@ body {
   border: 2px solid var(--gold);
   border-radius: 16px;
   box-shadow:
-    0 6px 24px var(--shadow),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    0 8px 32px var(--shadow),
+    0 4px 16px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
   position: relative;
   margin-bottom: 1.5rem;
@@ -128,9 +130,11 @@ body {
 .glass-card:hover {
   transform: translateY(-2px);
   box-shadow: 
-    0 8px 30px var(--shadow),
+    0 12px 40px var(--shadow),
+    0 6px 20px rgba(0, 0, 0, 0.15),
     0 0 20px var(--glow),
-    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.15);
 }
 
 /* Mystical Text Effects */
@@ -202,6 +206,11 @@ body {
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
+  box-shadow:
+    0 4px 12px var(--shadow),
+    0 2px 6px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
 }
 
 /* Dark mode mystical button */
@@ -210,9 +219,9 @@ body {
   color: var(--ink);
   border: 2px solid var(--gold-dark);
   box-shadow: 
-    0 0 30px var(--glow),
-    0 0 60px rgba(212, 175, 55, 0.3),
-    0 4px 20px rgba(0, 0, 0, 0.5);
+    0 0 15px var(--glow),
+    0 0 25px rgba(212, 175, 55, 0.2),
+    0 4px 15px rgba(0, 0, 0, 0.3);
 }
 
 /* Dark mode additional enhancements */
@@ -223,14 +232,14 @@ body {
   -webkit-text-fill-color: transparent;
   background-clip: text;
   animation: mysticalGlow 4s ease-in-out infinite;
-  text-shadow: 0 0 20px var(--glow);
+  text-shadow: 0 0 8px var(--glow);
 }
 
 .dark .neon-glow {
   box-shadow:
-    0 0 30px var(--glow),
-    0 0 60px rgba(212, 175, 55, 0.3),
-    0 0 90px rgba(168, 85, 247, 0.2);
+    0 0 15px var(--glow),
+    0 0 25px rgba(212, 175, 55, 0.15),
+    0 0 35px rgba(168, 85, 247, 0.1);
 }
 
 .mystical-button::before {
@@ -250,7 +259,21 @@ body {
 
 .mystical-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px var(--shadow), 0 0 15px var(--glow);
+  box-shadow: 
+    0 8px 25px var(--shadow), 
+    0 4px 12px rgba(0, 0, 0, 0.15),
+    0 0 15px var(--glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* Dark mode mystical button hover */
+.dark .mystical-button:hover {
+  background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+  box-shadow: 
+    0 8px 20px rgba(0, 0, 0, 0.4),
+    0 0 20px var(--glow),
+    0 0 30px rgba(212, 175, 55, 0.25);
 }
 
 /* Ancient Scroll Effect */
@@ -259,8 +282,10 @@ body {
   border: 3px solid var(--gold);
   border-radius: 0 0 20px 20px;
   box-shadow: 
-    0 10px 30px var(--shadow),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    0 12px 40px var(--shadow),
+    0 6px 20px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
   position: relative;
 }
 

@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Dice6, MessageCircle, Zap, Target, CheckCircle, Package, Trophy, User, Hash, Volume2, VolumeX } from 'lucide-react';
+import { Send, Dice6, MessageCircle, Zap, Target, Package, Trophy, Hash, Volume2, VolumeX } from 'lucide-react';
 import { useGameSocket } from '../hooks/useGameSocket';
 import { useLanguage } from '../hooks/useLanguage';
+import { GameEndModal } from './GameEndModal';
 import { useAudioStory } from '../hooks/useAudioStory';
-import { DiceRoll } from './DiceRoll';
 import { ModernDice } from './ModernDice';
 import { Genre, Character } from '../types/game';
 
@@ -27,11 +27,10 @@ export const GamePage: React.FC<GamePageProps> = ({
   const [message, setMessage] = useState('');
   const [isRolling, setIsRolling] = useState(false);
   const [lastRoll, setLastRoll] = useState<number | null>(null);
-  const [showResult, setShowResult] = useState(false);
-  const [showTTSControls, setShowTTSControls] = useState(false);
+  const [showGameEndModal, setShowGameEndModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  const { messages, gameState, currentStage, isConnected, sendMessage, rollDice, makeChoice, rollChoiceDice, audioStory, voicePlayback, smartAudio } = useGameSocket(roomCode, genre);
+  const { messages, gameState, currentStage, isConnected, isLoadingStory, stageHistory, sendMessage, rollDice, makeChoice, rollChoiceDice, voicePlayback, smartAudio } = useGameSocket(roomCode, genre);
   const { t } = useLanguage();
   
   // TTS functionality for story narration
@@ -42,7 +41,6 @@ export const GamePage: React.FC<GamePageProps> = ({
     isEnabled: isTTSEnabled,
     play: playTTS,
     pause: pauseTTS,
-    stop: stopTTS,
     toggleEnabled: toggleTTS
   } = useAudioStory(storyText, () => {
     console.log('Story audio completed');
@@ -57,6 +55,18 @@ export const GamePage: React.FC<GamePageProps> = ({
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Debug: Log stage history changes
+  useEffect(() => {
+    console.log('GamePage - Stage History Updated:', stageHistory);
+  }, [stageHistory]);
+
+  // Show game end modal when game ends
+  useEffect(() => {
+    if (gameState?.gameEnd && !showGameEndModal) {
+      setShowGameEndModal(true);
+    }
+  }, [gameState?.gameEnd, showGameEndModal]);
 
   const handleSendMessage = () => {
     if (!message.trim()) return;
@@ -77,34 +87,30 @@ export const GamePage: React.FC<GamePageProps> = ({
     setIsRolling(true);
     const roll = rollDice();
     setLastRoll(roll);
-    setShowResult(true);
     
     setTimeout(() => {
       setIsRolling(false);
       setTimeout(() => {
-        setShowResult(false);
         setLastRoll(null);
       }, 2000);
     }, 1000);
   };
 
-  const handleChoiceDiceRoll = () => {
+  const handleChoiceDiceRoll = async () => {
     if (!gameState?.waitingForDiceRoll) return;
     setIsRolling(true);
-    const roll = rollChoiceDice();
+    const roll = await rollChoiceDice();
     setLastRoll(roll);
-    setShowResult(true);
     
     setTimeout(() => {
       setIsRolling(false);
       setTimeout(() => {
-        setShowResult(false);
         setLastRoll(null);
       }, 2000);
     }, 1000);
   };
-  const handleMakeChoice = (choiceId: number) => {
-    makeChoice(choiceId);
+  const handleMakeChoice = async (choiceId: number) => {
+    await makeChoice(choiceId);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -112,6 +118,16 @@ export const GamePage: React.FC<GamePageProps> = ({
       e.preventDefault();
       handleSendMessage();
     }
+  };
+
+  const handleCloseGameEndModal = () => {
+    setShowGameEndModal(false);
+  };
+
+  const handleRestartGame = () => {
+    setShowGameEndModal(false);
+    // Reset game state - this would need to be implemented in the store
+    window.location.reload(); // Simple restart for now
   };
 
   const getMessageIcon = (type: string) => {
@@ -163,7 +179,7 @@ export const GamePage: React.FC<GamePageProps> = ({
                 <div>
                   <div className="text-base sm:text-lg font-bold text-ink">{character.name}</div>
                          <div className="text-xs sm:text-sm text-ink-muted">
-                           Level {character.level} {character.class.name} {character.race.name}
+                           {character.class.name} {character.race.name}
                          </div>
                 </div>
               </div>
@@ -341,7 +357,7 @@ export const GamePage: React.FC<GamePageProps> = ({
                 <div className="absolute -inset-2 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 rounded-2xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               </div>
                     <h3 className="text-ink text-sm font-semibold mb-1">{t('game.stage')}</h3>
-                    <p className="text-ink text-lg font-bold">{gameState.currentStage}/{gameState.maxStages}</p>
+                    <p className="text-ink text-lg font-bold">{gameState.currentStage}</p>
             </div>
             <div className="text-center group">
               <div className="relative inline-block mb-3">
@@ -363,10 +379,65 @@ export const GamePage: React.FC<GamePageProps> = ({
                 <div className="absolute -inset-2 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 rounded-2xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               </div>
                     <h3 className="text-ink text-sm font-semibold mb-1">{t('game.action')}</h3>
-              <p className="text-ink text-lg font-bold">
-                {gameState.pendingChoice ? t('game.choose') : gameState.waitingForDiceRoll ? t('game.rollDiceAction') : t('game.ready')}
+              <p className="text-ink text-lg font-bold text-right">
+                {isLoadingStory ? 'در حال دریافت داستان...' : gameState.pendingChoice ? t('game.choose') : gameState.waitingForDiceRoll ? t('game.rollDiceAction') : t('game.ready')}
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Stage History */}
+      {(
+        <div className="glass-card p-6 mb-6 ancient-scroll bg-gradient-to-r from-blue-50/80 to-cyan-50/80">
+          <div className="flex items-center space-x-3 mb-4">
+            <div className="relative">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500/30 to-cyan-500/30 rounded-xl flex items-center justify-center">
+                <Hash className="h-5 w-5 text-ink-muted" />
+              </div>
+              <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-xl blur-sm -z-10"></div>
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-ink">{t('game.stageHistory')}</h3>
+              <p className="text-sm text-ink-muted text-right">{t('game.previousStages')}</p>
+            </div>
+          </div>
+          
+          <div className="space-y-4">
+            {stageHistory.length > 0 ? (
+              stageHistory
+                .sort((a, b) => a.stage - b.stage) // Sort by stage number
+                .map((stage, index) => (
+                <div key={`${stage.stage}-${index}`} className="glass-card p-4 hover:scale-105 transition-transform duration-300">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-semibold text-ink-muted bg-amber-100 dark:bg-amber-900/30 px-2 py-1 rounded-full">
+                      Stage {stage.stage}
+                    </span>
+                    <span className="text-xs text-ink-muted">
+                      {stage.stage === (gameState?.currentStage || 1) ? 'Current' : 'Completed'}
+                    </span>
+                  </div>
+                  <p className="text-sm text-ink text-right leading-relaxed mb-3 whitespace-pre-line">{stage.description.replace(/\\n/g, '\n').replace(/\/n/g, '\n')}</p>
+                  {stage.choices && stage.choices.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-amber-200 dark:border-amber-700">
+                      <p className="text-xs font-semibold text-ink-muted mb-2">Choices:</p>
+                      <div className="space-y-1">
+                        {stage.choices.map((choice, choiceIndex) => (
+                          <div key={choiceIndex} className="text-xs text-ink-muted bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded whitespace-pre-line">
+                            {choiceIndex + 1}. {choice.text.replace(/\\n/g, '\n').replace(/\/n/g, '\n')} (DC: {choice.dc})
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="glass-card p-6 text-center">
+                <div className="text-4xl mb-4">📚</div>
+                <p className="text-ink-muted">No stages completed yet. Start your adventure!</p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -383,7 +454,7 @@ export const GamePage: React.FC<GamePageProps> = ({
             </div>
                    <div>
                      <h3 className="text-xl font-bold text-ink">{t('game.adventureLog')}</h3>
-                     <p className="text-sm text-ink-muted">{t('game.followJourney')}</p>
+                     <p className="text-sm text-ink-muted text-right">{t('game.followJourney')}</p>
                    </div>
           </div>
         </div>
@@ -393,7 +464,7 @@ export const GamePage: React.FC<GamePageProps> = ({
           {messages.map((msg) => (
             <div
               key={msg.id}
-              className={`group flex items-start space-x-4 ${
+              className={`group flex items-start space-x-4 space-x-reverse ${
                 msg.type === 'ai' ? 'glass-card p-4 border-purple-500/20' : ''
               }`}
             >
@@ -415,7 +486,7 @@ export const GamePage: React.FC<GamePageProps> = ({
                          }`}>
                     {msg.sender}
                   </span>
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-3 space-x-reverse">
                     <span className="text-xs text-ink-muted">
                       {msg.timestamp.toLocaleTimeString()}
                     </span>
@@ -426,8 +497,8 @@ export const GamePage: React.FC<GamePageProps> = ({
                     )}
                   </div>
                 </div>
-                <p className="text-ink text-sm leading-relaxed group-hover:text-ink transition-colors">
-                  {msg.content}
+                <p className="text-ink text-sm leading-relaxed group-hover:text-ink transition-colors text-right whitespace-pre-line">
+                  {msg.content.replace(/\\n/g, '\n').replace(/\/n/g, '\n')}
                 </p>
               </div>
             </div>
@@ -445,7 +516,7 @@ export const GamePage: React.FC<GamePageProps> = ({
                   <h4 className="text-2xl font-bold text-ink mb-2">🎯 {t('game.timeToRoll')}</h4>
                   <div className="absolute -inset-2 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-xl blur-lg"></div>
                 </div>
-                       <p className="text-ink mb-6 text-lg">
+                       <p className="text-ink mb-6 text-lg text-right">
                          {t('game.rollToSucceed').replace('{dc}', gameState.selectedChoice.dc.toString())}
                        </p>
                 <button
@@ -488,14 +559,15 @@ export const GamePage: React.FC<GamePageProps> = ({
             <div className="p-6 border-b border-white/10">
                      <div className="text-center mb-6">
                        <h4 className="text-2xl font-bold text-ink mb-2">{t('game.chooseAction')}</h4>
-                       <p className="text-ink-muted">{t('game.selectOption')}</p>
+                       <p className="text-ink-muted text-right">{t('game.selectOption')}</p>
                      </div>
-              <div className="space-y-4">
+              <div className="space-y-2">
                 {currentStage.choices.map((choice, index) => (
                   <button
                     key={choice.id}
                     onClick={() => handleMakeChoice(choice.id)}
-                    className="group w-full glass-card p-6 hover:scale-105 transition-all duration-300 text-left"
+                    disabled={isLoadingStory}
+                    className="group w-full glass-card p-6 hover:scale-105 transition-all duration-300 text-left disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4">
@@ -508,8 +580,8 @@ export const GamePage: React.FC<GamePageProps> = ({
                         </div>
                       </div>
                       <div className="flex-1 ml-6">
-                        <p className="text-ink text-lg group-hover:text-ink transition-colors">
-                          {choice.text}
+                        <p className="text-ink text-lg group-hover:text-ink transition-colors text-right whitespace-pre-line">
+                          {choice.text.replace(/\\n/g, '\n').replace(/\/n/g, '\n')}
                         </p>
                       </div>
                              <div className="text-amber-400 group-hover:text-amber-300 transition-colors">
@@ -533,7 +605,7 @@ export const GamePage: React.FC<GamePageProps> = ({
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     onKeyPress={handleKeyPress}
-                           className="w-full px-4 py-4 bg-amber-50/80 border border-amber-300/50 rounded-xl text-ink placeholder-ink-muted focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-300 resize-none text-base backdrop-blur-sm"
+                           className="w-full px-4 py-4 bg-amber-50/80 dark:bg-parchment/20 border border-amber-300/50 dark:border-amber-500/50 rounded-xl text-ink dark:text-black placeholder-ink-muted dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-300 resize-none text-base backdrop-blur-sm text-right"
                     placeholder={t('game.chatPlaceholder')}
                     rows={3}
                     maxLength={500}
@@ -547,7 +619,7 @@ export const GamePage: React.FC<GamePageProps> = ({
               <div className="flex space-x-4">
                 <button
                   onClick={handleRollDice}
-                  disabled={isRolling || gameState?.pendingChoice || gameState?.waitingForDiceRoll}
+                  disabled={isRolling || gameState?.pendingChoice || gameState?.waitingForDiceRoll || isLoadingStory}
                          className="group relative bg-gradient-to-r from-yellow-500 via-orange-500 to-yellow-500 text-ink px-8 py-5 rounded-xl font-semibold hover:from-yellow-400 hover:via-orange-400 hover:to-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 active:scale-95 flex items-center space-x-2 overflow-hidden"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
@@ -572,7 +644,7 @@ export const GamePage: React.FC<GamePageProps> = ({
       {/* Modern Dice Roll */}
       <ModernDice
         isRolling={isRolling}
-        result={lastRoll}
+        result={lastRoll ?? undefined}
         onRollComplete={(result) => {
           // فقط نتیجه را ذخیره کنیم، ModernDice خودش نمایش را مدیریت می‌کند
           setLastRoll(result);
@@ -581,6 +653,15 @@ export const GamePage: React.FC<GamePageProps> = ({
         criticalHit={lastRoll === 20}
         criticalMiss={lastRoll === 1}
       />
+
+      {/* Game End Modal */}
+      {showGameEndModal && gameState?.gameEnd && (
+        <GameEndModal
+          gameEnd={gameState.gameEnd}
+          onClose={handleCloseGameEndModal}
+          onRestart={handleRestartGame}
+        />
+      )}
     </div>
   );
 };

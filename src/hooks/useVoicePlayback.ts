@@ -159,7 +159,7 @@ export const useVoicePlayback = (
         }
       });
 
-      audio.addEventListener('error', (e) => {
+      audio.addEventListener('error', () => {
         const errorMessage = `Failed to load voice file: ${voiceFilePath}`;
         setState(prev => ({
           ...prev,

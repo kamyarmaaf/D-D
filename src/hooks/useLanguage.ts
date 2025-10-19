@@ -26,16 +26,16 @@ const translations: Translations = {
   'lobby.subtitle': { en: 'Where Stories Come Alive', fa: 'Where Stories Come Alive' },
   'lobby.createRoom': { en: 'Create Room', fa: 'ایجاد اتاق' },
   'lobby.joinRoom': { en: 'Join Room', fa: 'ورود به اتاق' },
-  'lobby.nickname': { en: 'Adventurer Name', fa: 'Adventurer Name' },
-  'lobby.roomCode': { en: 'Chapter Code', fa: 'Chapter Code' },
-  'lobby.enterCode': { en: 'Enter chapter code', fa: 'Enter chapter code' },
-  'lobby.selectGenre': { en: 'Select Story Genre', fa: 'Select Story Genre' },
-  'lobby.genreDescription': { en: 'Choose the type of adventure you want to experience', fa: 'Choose the type of adventure you want to experience' },
+  'lobby.nickname': { en: 'Adventurer Name', fa: 'نام ماجراجو' },
+  'lobby.roomCode': { en: 'Chapter Code', fa: 'کد' },
+  'lobby.enterCode': { en: 'Enter chapter code', fa: 'کد را وارد کنید' },
+  'lobby.selectGenre': { en: 'Select Story Genre', fa: 'ژانر را وارد کنید' },
+  'lobby.genreDescription': { en: 'Choose the type of adventure you want to experience', fa: 'ژانر داستانی که میخواهید تجربه کنید را انتخاب کنید' },
   'lobby.startAdventure': { en: 'Start a new adventure as the host', fa: 'Start a new adventure as the host' },
   'lobby.joinAdventure': { en: 'Join an existing adventure', fa: 'Join an existing adventure' },
   'lobby.roomCreated': { en: 'Chapter Created Successfully!', fa: 'Chapter Created Successfully!' },
   'lobby.shareCode': { en: 'Share this code with your friends or let them scan the QR code', fa: 'Share this code with your friends or let them scan the QR code' },
-  'lobby.quickStart': { en: 'Quick Start (Fantasy)', fa: 'Quick Start (Fantasy)' },
+  'lobby.quickStart': { en: 'Quick Start (jenabkhan)', fa: 'Quick Start (jenabkhan)' },
   'lobby.chooseGenre': { en: 'Choose Genre', fa: 'Choose Genre' },
   'lobby.friendsJoin': { en: 'Your friends can join using code', fa: 'Your friends can join using code' },
   'lobby.liveMultiplayer': { en: 'Live Multiplayer', fa: 'Live Multiplayer' },
@@ -46,6 +46,19 @@ const translations: Translations = {
   'lobby.realtimeMultiplayer': { en: 'Real-time Multiplayer', fa: 'Real-time Multiplayer' },
   'lobby.realtimeDescription': { en: 'Play with friends in real-time adventures with live updates', fa: 'Play with friends in real-time adventures with live updates' },
   'lobby.aiDescription': { en: 'Dynamic storytelling powered by advanced AI technology', fa: 'Dynamic storytelling powered by advanced AI technology' },
+  
+  // Game End
+  'gameEnd.victory': { en: 'Victory!', fa: 'پیروزی!' },
+  'gameEnd.defeat': { en: 'Defeat', fa: 'شکست' },
+  'gameEnd.timeout': { en: 'Time\'s Up', fa: 'زمان تمام شد' },
+  'gameEnd.abandoned': { en: 'Game Abandoned', fa: 'بازی رها شد' },
+  'gameEnd.gameOver': { en: 'Game Over', fa: 'بازی تمام شد' },
+  'gameEnd.stagesCompleted': { en: 'Stages Completed', fa: 'مراحل تکمیل شده' },
+  'gameEnd.finalScore': { en: 'Final Score', fa: 'امتیاز نهایی' },
+  'gameEnd.completion': { en: 'Completion', fa: 'درصد تکمیل' },
+  'gameEnd.reason': { en: 'Reason', fa: 'دلیل' },
+  'gameEnd.playAgain': { en: 'Play Again', fa: 'بازی مجدد' },
+  'gameEnd.goHome': { en: 'Go Home', fa: 'بازگشت به خانه' },
   
   // Info Banner
   'banner.title': { en: 'about game', fa: 'آموزش بازی' },
@@ -99,6 +112,8 @@ const translations: Translations = {
   'game.connecting': { en: 'Connecting...', fa: 'Connecting...' },
   'game.inventory': { en: 'Inventory', fa: 'موجودی' },
   'game.achievements': { en: 'Achievements', fa: 'دستاوردها' },
+  'game.stageHistory': { en: 'Stage History', fa: 'تاریخچه مراحل' },
+  'game.previousStages': { en: 'Story descriptions from completed stages', fa: 'توضیحات داستان از مراحل تکمیل شده' },
   
   // Character Creation
   'character.create': { en: 'Create Your Character', fa: 'Create Your Character' },
@@ -194,8 +209,7 @@ export const useLanguage = () => {
   const changeLanguage = (lang: Language) => {
     setLanguage(lang);
     localStorage.setItem('dnd-language', lang);
-    // Auto-refresh page after language change
-    window.location.reload();
+    // Language changed without page refresh
   };
 
   const t = (key: string): string => {

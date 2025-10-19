@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Users, Plus, Hash, QrCode, Wand2, Clock, Search, Ghost, Smile, Rocket, Crown } from 'lucide-react';
 import { useLanguage } from '../hooks/useLanguage';
 import { QRCodeGenerator } from './QRCodeGenerator';
 import InfoBanner from './InfoBanner';
 import { Genre } from '../types/game';
 import { useEnhancedGameStore } from '../store/enhancedGameStore';
+import { webhookService } from '../services/webhookService';
+import { LoadingOverlay } from './LoadingSpinner';
 
 interface LobbyProps {
   onJoinRoom: (code: string, nickname: string, genre?: Genre) => void;
@@ -16,36 +18,16 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
   const [createdRoomCode, setCreatedRoomCode] = useState('');
   const [showGenreSelection, setShowGenreSelection] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingGenre, setIsLoadingGenre] = useState(false);
+  const [selectedGenreId, setSelectedGenreId] = useState<Genre | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { t } = useLanguage();
 
   const {
-    initializeDatabase,
     createRoom,
     joinRoom
   } = useEnhancedGameStore();
 
-  // Initialize database on component mount
-  useEffect(() => {
-    const init = async () => {
-      try {
-        await initializeDatabase();
-        console.log('Database initialized in Lobby');
-        
-        // Debug: Check if database exists in localStorage
-        const dbData = localStorage.getItem('dnd_bolt.db');
-        if (dbData) {
-          console.log('Database found in localStorage:', dbData.length, 'characters');
-        } else {
-          console.log('No database found in localStorage');
-        }
-      } catch (error) {
-        console.error('Failed to initialize database:', error);
-        setError('Failed to initialize database. Please refresh the page.');
-      }
-    };
-    init();
-  }, [initializeDatabase]);
 
   const genres: { id: Genre; icon: React.ReactNode; color: string; name: string; description: string }[] = [
     { id: 'fantasy', icon: <Wand2 className="h-5 w-5 sm:h-6 sm:w-6" />, color: 'from-amber-500 to-yellow-600', name: 'Fantasy', description: 'Magic & Dragons' },
@@ -60,7 +42,6 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
   const generateRoomCode = () => {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
     console.log('Generated room code:', code);
-    setCreatedRoomCode(code);
     return code;
   };
 
@@ -72,9 +53,6 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
     
     try {
       const code = generateRoomCode();
-      console.log('Generated room code:', code);
-      console.log('Code type:', typeof code);
-      console.log('Code length:', code ? code.length : 'undefined');
       
       // Validate code
       if (!code || code.trim() === '') {
@@ -85,7 +63,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
       const hostPlayer = {
         id: `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         nickname: nickname.trim(),
-        age: 25, // Default age, could be made configurable
+        age: 25,
         genre: 'Fantasy' as const,
         score: 0,
         titles: [],
@@ -94,13 +72,11 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
         experience: 0
       };
 
-      console.log('Host player data:', hostPlayer);
-      console.log('Calling createRoom with:', { code, genre: 'fantasy', hostPlayer });
-
-      // Create room in database using the correct method
+      // Create room in database
       await createRoom(code, 'fantasy', hostPlayer);
       
-      console.log('Room created successfully');
+      // Set the created room code for display
+      setCreatedRoomCode(code);
     } catch (error) {
       console.error('Failed to create room:', error);
       setError('Failed to create room. Please try again.');
@@ -109,8 +85,26 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
     }
   };
 
-  const handleGenreSelect = (genre: Genre) => {
-    onJoinRoom(createdRoomCode, nickname, genre);
+  const handleGenreSelect = async (genre: Genre) => {
+    setIsLoadingGenre(true);
+    setSelectedGenreId(genre);
+    
+    try {
+      // Send webhook request for story start
+      const webhookResponse = await webhookService.sendStoryStart(createdRoomCode, genre);
+      if (webhookResponse.success) {
+        console.log('Webhook request sent successfully:', webhookResponse.data);
+      } else {
+        console.warn('Webhook request failed:', webhookResponse.message);
+      }
+    } catch (error) {
+      console.error('Failed to send webhook request:', error);
+    }
+    
+    // Add a small delay to show the loading animation
+    setTimeout(() => {
+      onJoinRoom(createdRoomCode, nickname, genre);
+    }, 2000);
   };
 
   const handleJoinRoom = async () => {
@@ -124,6 +118,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
       const player = {
         id: `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         nickname: nickname.trim(),
+        email: (JSON.parse(localStorage.getItem('dnd_user') || 'null')?.email) || undefined,
         age: 25, // Default age, could be made configurable
         genre: 'Fantasy' as const,
         score: 0,
@@ -152,7 +147,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
 
   const handleQuickStart = () => {
     if (createdRoomCode && nickname.trim()) {
-      onJoinRoom(createdRoomCode, nickname, 'fantasy');
+      onJoinRoom(createdRoomCode, nickname, 'jenabkhan');
     }
   };
 
@@ -185,70 +180,109 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
 
   if (showGenreSelection && createdRoomCode) {
     return (
-      <div className="max-w-4xl mx-auto px-2 sm:px-0">
-        <div className="text-center mb-6 sm:mb-8 lg:mb-10">
-          <h1 className="text-xl sm:text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4 bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
-            {t('lobby.selectGenre')}
-          </h1>
-          <p className="text-base sm:text-lg text-purple-200 px-4 mb-6">
-            {t('lobby.genreDescription')}
-          </p>
-          <div className="flex items-center justify-center space-x-3 mb-6 sm:mb-8 lg:mb-10">
-            <div className="flex items-center space-x-2 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 px-4 py-2 rounded-xl border border-amber-400/30 backdrop-blur-sm">
-              <Hash className="h-5 w-5 text-ink-muted drop-shadow-lg" />
-              <span className="text-xl font-mono font-bold text-ink bg-gradient-to-r from-amber-600 to-yellow-600 bg-clip-text text-transparent tracking-wide">
-                {createdRoomCode}
-              </span>
+      <>
+        <div className="max-w-4xl mx-auto px-2 sm:px-0">
+          <div className="text-center mb-6 sm:mb-8 lg:mb-10">
+            <h1 className="text-xl sm:text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4 bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
+              {t('lobby.selectGenre')}
+            </h1>
+            <p className="text-base sm:text-lg text-purple-200 px-4 mb-6">
+              {t('lobby.genreDescription')}
+            </p>
+            <div className="flex items-center justify-center space-x-3 mb-6 sm:mb-8 lg:mb-10">
+              <div className="flex items-center space-x-2 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 px-4 py-2 rounded-xl border border-amber-400/30 backdrop-blur-sm">
+                <Hash className="h-5 w-5 text-ink-muted drop-shadow-lg" />
+                <span className="text-xl font-mono font-bold text-ink bg-gradient-to-r from-amber-600 to-yellow-600 bg-clip-text text-transparent tracking-wide">
+                  {createdRoomCode}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-          {genres.map((genre) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+            {genres.map((genre) => (
+              <button
+                key={genre.id}
+                onClick={() => handleGenreSelect(genre.id)}
+                disabled={isLoadingGenre}
+                className={`bg-gradient-to-br ${genre.color}/40 backdrop-blur-sm rounded-2xl p-8 border border-white/10 hover:border-white/20 transition-all transform hover:scale-105 active:scale-95 text-center group relative overflow-hidden ${
+                  isLoadingGenre ? 'opacity-50 cursor-not-allowed' : ''
+                } ${
+                  selectedGenreId === genre.id && isLoadingGenre ? 'ring-2 ring-amber-400 ring-opacity-50 animate-pulse' : ''
+                } ${
+                  isLoadingGenre && selectedGenreId !== genre.id ? 'animate-pulse' : ''
+                }`}
+              >
+                {/* Ripple effect on click */}
+                <div className="absolute inset-0 bg-white/10 rounded-2xl opacity-0 group-active:opacity-100 transition-opacity duration-150"></div>
+                {/* Loading overlay for selected genre */}
+                {selectedGenreId === genre.id && isLoadingGenre && (
+                  <div className="absolute inset-0 bg-gradient-to-br from-gold/20 to-mystic/20 backdrop-blur-sm flex items-center justify-center">
+                    <div className="relative">
+                      {/* Outer rotating ring */}
+                      <div className="animate-spin rounded-full h-8 w-8 border-2 border-ink/30"></div>
+                      {/* Inner rotating ring */}
+                      <div className="absolute top-0 left-0 animate-spin rounded-full h-8 w-8 border-2 border-gold border-t-transparent" style={{ animationDirection: 'reverse', animationDuration: '0.8s' }}></div>
+                      {/* Center pulsing dot */}
+                      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-gold rounded-full animate-pulse"></div>
+                    </div>
+                  </div>
+                )}
+                
+                <div className={`bg-gradient-to-r ${genre.color}/20 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center group-hover:scale-110 transition-transform relative overflow-hidden`}>
+                  {/* Hover effect overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-gold/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full"></div>
+                  <div className="text-white relative z-10">
+                    {genre.icon}
+                  </div>
+                </div>
+                <h3 className="text-lg sm:text-xl font-bold text-white dark:text-ink mb-2 group-hover:text-gold transition-colors duration-300">
+                  {t(`genre.${genre.id}`)}
+                </h3>
+                <p className="text-sm text-gray-300 dark:text-ink-muted group-hover:text-ink-light transition-colors duration-300">
+                  {t(`genre.${genre.id}.desc`)}
+                </p>
+              </button>
+            ))}
+          </div>
+
+          <div className="text-center mt-8">
             <button
-              key={genre.id}
-              onClick={() => handleGenreSelect(genre.id)}
-              className={`bg-gradient-to-br ${genre.color}/40 backdrop-blur-sm rounded-2xl p-8 border border-white/10 hover:border-white/20 transition-all transform hover:scale-105 active:scale-95 text-center group`}
+              onClick={() => setShowGenreSelection(false)}
+              disabled={isLoadingGenre}
+              className={`text-mystic hover:text-gold transition-all duration-300 transform hover:scale-105 active:scale-95 ${
+                isLoadingGenre ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
             >
-              <div className={`bg-gradient-to-r ${genre.color}/20 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                <div className="text-white">
-                  {genre.icon}
-                </div>
-              </div>
-              <h3 className="text-lg sm:text-xl font-bold text-white mb-2">
-                {t(`genre.${genre.id}`)}
-              </h3>
-              <p className="text-sm text-gray-300">
-                {t(`genre.${genre.id}.desc`)}
-              </p>
+              <span className="flex items-center space-x-2">
+                <span className="text-xl">←</span>
+                <span>بازگشت</span>
+              </span>
             </button>
-          ))}
-        </div>
-
-        <div className="text-center mt-8">
-          <button
-            onClick={() => setShowGenreSelection(false)}
-            className="text-purple-300 hover:text-white transition-colors"
-          >
-            ← بازگشت
-          </button>
-          
-          <div className="mt-4 p-4 bg-green-900/20 border border-green-500/30 rounded-lg">
-            <div className="text-center">
-              <h4 className="text-sm text-ink-muted font-semibold mb-2">اتاق شما:</h4>
-              <div className="flex items-center justify-center space-x-2 mb-4">
-                <div className="flex items-center space-x-2 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 px-3 py-2 rounded-lg border border-amber-400/30 backdrop-blur-sm">
-                  <Hash className="h-4 w-4 text-ink-muted drop-shadow-lg" />
-                  <span className="text-lg font-mono font-bold text-ink bg-gradient-to-r from-amber-600 to-yellow-600 bg-clip-text text-transparent tracking-wide">
-                    {createdRoomCode}
-                  </span>
+            
+            <div className="mt-4 p-4 bg-green-900/20 border border-green-500/30 rounded-lg">
+              <div className="text-center">
+                <h4 className="text-sm text-ink-muted font-semibold mb-2">اتاق شما:</h4>
+                <div className="flex items-center justify-center space-x-2 mb-4">
+                  <div className="flex items-center space-x-2 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 px-3 py-2 rounded-lg border border-amber-400/30 backdrop-blur-sm">
+                    <Hash className="h-4 w-4 text-ink-muted drop-shadow-lg" />
+                    <span className="text-lg font-mono font-bold text-ink bg-gradient-to-r from-amber-600 to-yellow-600 bg-clip-text text-transparent tracking-wide">
+                      {createdRoomCode}
+                    </span>
+                  </div>
                 </div>
+                <QRCodeGenerator roomCode={createdRoomCode} />
               </div>
-              <QRCodeGenerator roomCode={createdRoomCode} />
             </div>
           </div>
         </div>
-      </div>
+
+        {/* Loading Overlay */}
+        <LoadingOverlay 
+          isVisible={isLoadingGenre} 
+          text={`در حال آماده‌سازی داستان ${selectedGenreId ? t(`genre.${selectedGenreId}`) : ''}...`}
+        />
+      </>
     );
   }
 
@@ -261,10 +295,10 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
           </h1>
           <div className="absolute -inset-4 bg-gradient-to-r from-purple-500/20 to-cyan-500/20 rounded-2xl blur-xl -z-10"></div>
         </div>
-        <p className="text-base sm:text-xl lg:text-xl sm:text-2xl text-ink px-2 sm:px-4 mb-8 sm:mb-12 max-w-4xl mx-auto leading-relaxed">
+        <p className="text-base sm:text-xl lg:text-xl sm:text-2xl text-ink dark:text-ink-light px-2 sm:px-4 mb-8 sm:mb-12 max-w-4xl mx-auto leading-relaxed">
           {/* {t('lobby.subtitle')} */}
         </p>
-        <div className="flex items-center justify-center space-x-4 text-sm text-ink-muted">
+        <div className="flex items-center justify-center space-x-4 text-sm text-ink-muted dark:text-ink-light">
           <div className="flex items-center space-x-2">
             {/* <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div> */}
             {/* <span>{t('lobby.liveMultiplayer')}</span> */}
@@ -286,7 +320,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 lg:gap-12">
         {/* Create Room */}
-        <div className="group glass-card p-6 sm:p-8 lg:p-10 hover:scale-105 transition-all duration-500 hover:shadow-2xl">
+        <div className="group glass-card p-6 sm:p-8 lg:p-10 hover:scale-105 transition-all duration-500 hover:shadow-2xl dark:bg-parchment/10 dark:border-white/20">
           <div className="text-center mb-6 sm:mb-8 lg:mb-10">
             <div className="relative inline-block mb-6">
               <div className="bg-gradient-to-br from-amber-500/30 to-yellow-500/30 rounded-2xl p-6 w-16 h-16 sm:w-20 sm:h-20 mx-auto flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
@@ -308,7 +342,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
                   type="text"
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
-                  className="w-full px-4 py-3 bg-amber-50/80 border border-amber-400 rounded-xl text-ink placeholder-ink-muted focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-300 text-base"
+                  className="w-full px-4 py-3 bg-amber-50/80 dark:bg-parchment/20 border border-amber-400 dark:border-amber-500/50 rounded-xl text-ink dark:text-black placeholder-ink-muted dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-300 text-base"
                   placeholder={t('lobby.nickname')}
                   maxLength={20}
                 />
@@ -398,7 +432,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
         </div>
 
         {/* Join Room */}
-        <div className="group glass-card p-6 sm:p-8 lg:p-10 hover:scale-105 transition-all duration-500 hover:shadow-2xl">
+        <div className="group glass-card p-6 sm:p-8 lg:p-10 hover:scale-105 transition-all duration-500 hover:shadow-2xl dark:bg-parchment/10 dark:border-white/20">
           <div className="text-center mb-6 sm:mb-8 lg:mb-10">
             <div className="relative inline-block mb-6">
               <div className="bg-gradient-to-br from-amber-500/30 to-yellow-500/30 rounded-2xl p-6 w-16 h-16 sm:w-20 sm:h-20 mx-auto flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
@@ -420,7 +454,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
                   type="text"
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
-                  className="w-full px-4 py-3 bg-amber-50/80 border border-amber-400 rounded-xl text-ink placeholder-ink-muted focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-300 text-base"
+                  className="w-full px-4 py-3 bg-amber-50/80 dark:bg-parchment/20 border border-amber-400 dark:border-amber-500/50 rounded-xl text-ink dark:text-black placeholder-ink-muted dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-300 text-base"
                   placeholder={t('lobby.nickname')}
                   maxLength={20}
                 />
@@ -437,7 +471,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
                   type="text"
                   value={roomCode}
                   onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                  className="w-full px-4 py-3 bg-amber-50/80 border border-amber-400 rounded-xl text-ink placeholder-ink-muted focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-300 font-mono text-center text-xl"
+                  className="w-full px-4 py-3 bg-amber-50/80 dark:bg-parchment/20 border border-amber-400 dark:border-amber-500/50 rounded-xl text-ink dark:text-black placeholder-ink-muted dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-300 font-mono text-center text-xl"
                   placeholder={t('lobby.enterCode')}
                   maxLength={6}
                 />
@@ -466,37 +500,37 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
 
       {/* Features */}
       <div className="mt-16 sm:mt-20 lg:mt-24 grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 md:gap-12">
-        <div className="group text-center glass-card p-6 sm:p-8 lg:p-10 hover:scale-105 transition-all duration-500">
+        <div className="group text-center glass-card p-6 sm:p-8 lg:p-10 hover:scale-105 transition-all duration-500 dark:bg-parchment/10 dark:border-white/20">
           <div className="relative inline-block mb-6">
             <div className="bg-gradient-to-br from-amber-500/30 to-yellow-500/30 rounded-2xl p-6 w-16 h-16 mx-auto flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
               <QrCode className="h-6 w-6 sm:h-8 sm:w-8 text-ink-muted group-hover:text-ink transition-colors" />
             </div>
             <div className="absolute -inset-2 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 rounded-2xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
           </div>
-          <h3 className="text-xl font-bold text-ink mb-3 group-hover:gradient-text transition-all duration-300">{t('lobby.qrSharing')}</h3>
-          <p className="text-ink-muted group-hover:text-ink-muted transition-colors">{t('lobby.qrDescription')}</p>
+          <h3 className="text-xl font-bold text-ink dark:text-ink-light mb-3 group-hover:gradient-text transition-all duration-300">{t('lobby.qrSharing')}</h3>
+          <p className="text-ink-muted dark:text-ink-muted group-hover:text-ink-muted transition-colors">{t('lobby.qrDescription')}</p>
         </div>
         
-        <div className="group text-center glass-card p-6 sm:p-8 lg:p-10 hover:scale-105 transition-all duration-500">
+        <div className="group text-center glass-card p-6 sm:p-8 lg:p-10 hover:scale-105 transition-all duration-500 dark:bg-parchment/10 dark:border-white/20">
           <div className="relative inline-block mb-6">
             <div className="bg-gradient-to-br from-amber-500/30 to-yellow-500/30 rounded-2xl p-6 w-16 h-16 mx-auto flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
               <Users className="h-6 w-6 sm:h-8 sm:w-8 text-ink-muted group-hover:text-ink transition-colors" />
             </div>
             <div className="absolute -inset-2 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 rounded-2xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
           </div>
-          <h3 className="text-xl font-bold text-ink mb-3 group-hover:gradient-text transition-all duration-300">{t('lobby.realtimeMultiplayer')}</h3>
-          <p className="text-ink-muted group-hover:text-ink-muted transition-colors">{t('lobby.realtimeDescription')}</p>
+          <h3 className="text-xl font-bold text-ink dark:text-ink-light mb-3 group-hover:gradient-text transition-all duration-300">{t('lobby.realtimeMultiplayer')}</h3>
+          <p className="text-ink-muted dark:text-ink-muted group-hover:text-ink-muted transition-colors">{t('lobby.realtimeDescription')}</p>
         </div>
         
-        <div className="group text-center glass-card p-6 sm:p-8 lg:p-10 hover:scale-105 transition-all duration-500">
+        <div className="group text-center glass-card p-6 sm:p-8 lg:p-10 hover:scale-105 transition-all duration-500 dark:bg-parchment/10 dark:border-white/20">
           <div className="relative inline-block mb-6">
             <div className="bg-gradient-to-br from-amber-500/30 to-yellow-500/30 rounded-2xl p-6 w-16 h-16 mx-auto flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
               <Hash className="h-6 w-6 sm:h-8 sm:w-8 text-ink-muted group-hover:text-ink transition-colors" />
             </div>
             <div className="absolute -inset-2 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 rounded-2xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
           </div>
-          <h3 className="text-xl font-bold text-ink mb-3 group-hover:gradient-text transition-all duration-300">{t('lobby.aiGameMaster')}</h3>
-          <p className="text-ink-muted group-hover:text-ink-muted transition-colors">{t('lobby.aiDescription')}</p>
+          <h3 className="text-xl font-bold text-ink dark:text-ink-light mb-3 group-hover:gradient-text transition-all duration-300">{t('lobby.aiGameMaster')}</h3>
+          <p className="text-ink-muted dark:text-ink-muted group-hover:text-ink-muted transition-colors">{t('lobby.aiDescription')}</p>
         </div>
       </div>
     </div>

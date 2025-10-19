@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useEnhancedGameStore } from '../store/enhancedGameStore';
 import { StoryStage, StoryChoice, Message } from '../types/game';
 

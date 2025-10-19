@@ -1,5 +1,5 @@
 import { databaseService } from './database';
-import { Room, Player, Character, Message, StoryStage, StoryChoice, Genre } from '../types/game';
+import { Room, Player, Character, Message, StoryStage, StoryChoice, Genre, Achievement, InventoryItem } from '../types/game';
 
 // Game-specific database operations
 export class GameDatabaseService {
@@ -35,10 +35,9 @@ export class GameDatabaseService {
     });
     
     // Create room
-    const room = await this.db.createRoom({
+    const roomData = {
       id: roomId,
       code: roomCode,
-      players: [],
       status: 'waiting',
       maxPlayers: 6,
       createdAt: new Date(),
@@ -47,16 +46,41 @@ export class GameDatabaseService {
       currentStage: 1,
       maxStages: 5,
       isGameActive: false
+    };
+    
+    console.log('Debug - Room data before createRoom call:', {
+      ...roomData,
+      code: roomData.code,
+      codeType: typeof roomData.code,
+      codeLength: roomData.code ? roomData.code.length : 'undefined'
     });
+    
+    console.log('Debug - About to call this.db.createRoom with:', {
+      roomData,
+      code: roomData.code,
+      codeType: typeof roomData.code,
+      isCodeNull: roomData.code === null,
+      isCodeUndefined: roomData.code === undefined
+    });
+    
+    await this.db.createRoom(roomData);
 
     // Create host player
-    const player = await this.db.createPlayer({
+    await this.db.createPlayer({
       ...hostPlayer,
       roomId: roomId
     });
 
     // Update room with host player
     const updatedRoom = await this.db.getRoomById(roomId);
+    
+    console.log('Debug - Final room from gameDatabase:', {
+      id: updatedRoom?.id,
+      code: updatedRoom?.code,
+      codeType: typeof updatedRoom?.code,
+      codeLength: updatedRoom?.code ? updatedRoom.code.length : 'undefined'
+    });
+    
     return updatedRoom!;
   }
 
@@ -70,7 +94,7 @@ export class GameDatabaseService {
     }
 
     // Create player
-    const newPlayer = await this.db.createPlayer({
+    await this.db.createPlayer({
       ...player,
       roomId: room.id
     });

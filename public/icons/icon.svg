@@ -1,0 +1,33 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="240" fill="#1e1b4b" stroke="#8b5cf6" stroke-width="32"/>
+  
+  <!-- D&D Dice -->
+  <g transform="translate(256, 256)">
+    <!-- Main dice -->
+    <rect x="-60" y="-60" width="120" height="120" rx="20" fill="#fbbf24" stroke="#f59e0b" stroke-width="4"/>
+    
+    <!-- Dice dots -->
+    <circle cx="-30" cy="-30" r="8" fill="#1e1b4b"/>
+    <circle cx="30" cy="-30" r="8" fill="#1e1b4b"/>
+    <circle cx="0" cy="0" r="8" fill="#1e1b4b"/>
+    <circle cx="-30" cy="30" r="8" fill="#1e1b4b"/>
+    <circle cx="30" cy="30" r="8" fill="#1e1b4b"/>
+    
+    <!-- Magic sparkles -->
+    <g fill="#8b5cf6" opacity="0.8">
+      <circle cx="-80" cy="-80" r="4"/>
+      <circle cx="80" cy="-80" r="4"/>
+      <circle cx="-80" cy="80" r="4"/>
+      <circle cx="80" cy="80" r="4"/>
+      <circle cx="0" cy="-100" r="3"/>
+      <circle cx="0" cy="100" r="3"/>
+      <circle cx="-100" cy="0" r="3"/>
+      <circle cx="100" cy="0" r="3"/>
+    </g>
+  </g>
+  
+  <!-- Text -->
+  <text x="256" y="400" text-anchor="middle" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="#fbbf24">D&D</text>
+  <text x="256" y="440" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" fill="#8b5cf6">BOLT</text>
+</svg>

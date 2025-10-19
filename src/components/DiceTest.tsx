@@ -32,7 +32,7 @@ export const DiceTest: React.FC = () => {
 
         <ModernDice
           isRolling={isRolling}
-          result={result}
+          result={result ?? undefined}
           onRollComplete={handleRollComplete}
           diceType="d20"
           criticalHit={result === 20}

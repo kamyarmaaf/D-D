@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://dand.zer0team.ir/sitemap.xml

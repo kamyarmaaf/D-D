@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Package, Sword, Shield, FlaskConical, Wrench, Star, Plus, Trash2, Eye } from 'lucide-react';
+import { Package, Sword, Shield, FlaskConical, Wrench, Plus, Trash2, Eye } from 'lucide-react';
 import { InventoryItem, ItemEffect } from '../types/game';
 import { useLanguage } from '../hooks/useLanguage';
 
@@ -7,7 +7,6 @@ interface InventoryProps {
   items: InventoryItem[];
   onItemUse: (item: InventoryItem) => void;
   onItemDrop: (itemId: string) => void;
-  onItemAdd: (item: InventoryItem) => void;
 }
 
 const typeIcons = {
@@ -34,7 +33,7 @@ const rarityBorders = {
   legendary: 'border-yellow-500/30'
 };
 
-export const Inventory: React.FC<InventoryProps> = ({ items, onItemUse, onItemDrop, onItemAdd }) => {
+export const Inventory: React.FC<InventoryProps> = ({ items, onItemUse, onItemDrop }) => {
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [filter, setFilter] = useState<string>('all');
   const { t } = useLanguage();

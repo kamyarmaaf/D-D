@@ -1,19 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Mail, Circle, Scroll, Star, Sword, Shield, BookOpen, Users, Zap, Heart, Crown, Sparkles } from 'lucide-react';
-import { useLanguage } from '../hooks/useLanguage';
+import { ChevronDown, Mail, Circle, Scroll, Star, Sword, Shield, Users, Crown, Sparkles } from 'lucide-react';
 
 interface InfoBannerProps {
   icon?: React.ReactNode;
 }
 
-const InfoBanner: React.FC<InfoBannerProps> = ({
-  icon = "⚔️"
-}) => {
-  const { t } = useLanguage();
+const InfoBanner: React.FC<InfoBannerProps> = () => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isKeyboardFocused, setIsKeyboardFocused] = useState(false);
   const bannerRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
 
   // Check for reduced motion preference
   const prefersReducedMotion = useRef(false);
@@ -65,12 +60,6 @@ const InfoBanner: React.FC<InfoBannerProps> = ({
     return 'transition-all duration-700 ease-out';
   };
 
-  const getTextTransitionClasses = () => {
-    if (prefersReducedMotion.current) {
-      return 'transition-none';
-    }
-    return 'transition-all duration-500 ease-out';
-  };
 
   return (
     <div 
@@ -84,8 +73,8 @@ const InfoBanner: React.FC<InfoBannerProps> = ({
           ${isExpanded ? 'w-full max-w-lg' : 'w-[200px] sm:w-[240px]'}
           ${isExpanded ? 'h-auto min-h-[250px] sm:min-h-[280px]' : 'h-[60px] sm:h-[70px]'}
           ${getTransitionClasses()}
-          bg-gradient-to-b from-[#fff6e6] to-[#f5e7ca]
-          border border-[#8b5a3c]
+          bg-gradient-to-b from-[#fff6e6] to-[#f5e7ca] dark:from-[#2d1b0e] dark:to-[#4a3424]
+          border border-[#8b5a3c] dark:border-[#d4af37]
           rounded-lg
           shadow-lg
           hover:shadow-xl
@@ -128,7 +117,7 @@ const InfoBanner: React.FC<InfoBannerProps> = ({
           // Open Letter Content
           <div className="p-2 sm:p-3">
             {/* Letter Header */}
-            <div className="bg-gradient-to-r from-amber-600/20 to-yellow-600/20 p-2 sm:p-3 mb-2 sm:mb-3 rounded-lg border border-amber-500/30">
+            <div className="bg-gradient-to-r from-amber-600/20 to-yellow-600/20 dark:from-amber-600/30 dark:to-yellow-600/30 p-2 sm:p-3 mb-2 sm:mb-3 rounded-lg border border-amber-500/30 dark:border-amber-500/50">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-amber-500/40 to-yellow-500/40 rounded-md flex items-center justify-center">

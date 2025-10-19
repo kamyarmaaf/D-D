@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Dice6, Zap, Star, Target, Heart, Shield, Sparkles } from 'lucide-react';
+import { Dice6, Zap, Star, Target, Heart, Shield } from 'lucide-react';
 
 interface ModernDiceProps {
   isRolling: boolean;

@@ -1,7 +1,9 @@
 import { create } from 'zustand';
-import { devtools, persist } from 'zustand/middleware';
+import { devtools } from 'zustand/middleware';
+// @ts-ignore
+import { persist } from 'zustand/middleware';
 import { Character, Player, Achievement, InventoryItem, GameState, Message, Room, Genre, StoryChoice } from '../types/game';
-import { gameDatabase } from '../database/gameDatabase';
+import { supabaseGameDatabase } from '../database/supabaseGameDatabase';
 
 interface EnhancedGameStore {
   // Player state
@@ -100,12 +102,15 @@ interface EnhancedGameStore {
   
   // Reset
   resetGame: () => void;
+  
+  // Room expiration
+  expireRoom: (roomId: string) => Promise<void>;
 }
 
 export const useEnhancedGameStore = create<EnhancedGameStore>()(
   devtools(
     persist(
-      (set, get) => ({
+      (set: any, get: any) => ({
         // Initial state
         currentPlayer: null,
         character: null,
@@ -124,10 +129,10 @@ export const useEnhancedGameStore = create<EnhancedGameStore>()(
         // Database operations
         initializeDatabase: async () => {
           try {
-            await gameDatabase.initialize();
-            console.log('Database initialized successfully');
+            await supabaseGameDatabase.initialize();
+            console.log('Supabase database initialized successfully');
           } catch (error) {
-            console.error('Failed to initialize database:', error);
+            console.error('Failed to initialize Supabase database:', error);
             throw error;
           }
         },
@@ -135,14 +140,36 @@ export const useEnhancedGameStore = create<EnhancedGameStore>()(
         // Room operations
         createRoom: async (roomCode: string, selectedGenre: Genre, hostPlayer: Omit<Player, 'character' | 'achievements'>) => {
           try {
-            console.log('Enhanced store createRoom called with:', { roomCode, selectedGenre, hostPlayer });
-            const room = await gameDatabase.createRoomWithGenre(roomCode, selectedGenre, hostPlayer);
+            console.log('Enhanced store createRoom called with:', { 
+              roomCode, 
+              roomCodeType: typeof roomCode,
+              roomCodeLength: roomCode ? roomCode.length : 'undefined',
+              isCodeNull: roomCode === null,
+              isCodeUndefined: roomCode === undefined,
+              isCodeEmpty: roomCode === '',
+              selectedGenre, 
+              hostPlayer 
+            });
+            
+            console.log('Debug - About to call gameDatabase.createRoomWithGenre with:', {
+              roomCode,
+              selectedGenre,
+              hostPlayer
+            });
+            
+            const room = await supabaseGameDatabase.createRoomWithGenre(roomCode, selectedGenre, hostPlayer);
             
             if (!room) {
               throw new Error('Failed to create room - room is null');
             }
             
             console.log('Room created successfully:', room);
+            console.log('Debug - Store state after room creation:', {
+              roomCode: roomCode,
+              roomCodeFromRoom: room.code,
+              currentRoomCode: roomCode,
+              areCodesEqual: roomCode === room.code
+            });
             set({ currentRoom: room, currentRoomCode: roomCode });
             return room;
           } catch (error) {
@@ -153,7 +180,7 @@ export const useEnhancedGameStore = create<EnhancedGameStore>()(
 
         joinRoom: async (roomCode: string, player: Omit<Player, 'character' | 'achievements'>) => {
           try {
-            const room = await gameDatabase.joinRoom(roomCode, player);
+            const room = await supabaseGameDatabase.joinRoom(roomCode, player);
             if (room) {
               set({ currentRoom: room, currentRoomCode: roomCode });
             }
@@ -167,7 +194,7 @@ export const useEnhancedGameStore = create<EnhancedGameStore>()(
         updateRoomStatus: async (status: 'waiting' | 'voting' | 'playing' | 'finished') => {
           const state = get();
           if (state.currentRoom) {
-            await gameDatabase.updateRoomStatus(state.currentRoom.id, status);
+            await supabaseGameDatabase.updateRoomStatus(state.currentRoom.id, status);
             set({ currentRoom: { ...state.currentRoom, status } });
           }
         },
@@ -175,7 +202,7 @@ export const useEnhancedGameStore = create<EnhancedGameStore>()(
         updateRoomStage: async (stage: number) => {
           const state = get();
           if (state.currentRoom) {
-            await gameDatabase.updateRoomStage(state.currentRoom.id, stage);
+            await supabaseGameDatabase.updateRoomStage(state.currentRoom.id, stage);
             set({ currentRoom: { ...state.currentRoom, currentStage: stage } });
           }
         },
@@ -183,23 +210,23 @@ export const useEnhancedGameStore = create<EnhancedGameStore>()(
         setGameActive: async (isActive: boolean) => {
           const state = get();
           if (state.currentRoom) {
-            await gameDatabase.setGameActive(state.currentRoom.id, isActive);
+            await supabaseGameDatabase.setGameActive(state.currentRoom.id, isActive);
             set({ currentRoom: { ...state.currentRoom, isGameActive: isActive } });
           }
         },
 
         // Player operations
-        setCurrentPlayer: (player) => set({ currentPlayer: player }),
+        setCurrentPlayer: (player: Player) => set({ currentPlayer: player }),
 
         updatePlayerScore: async (score: number) => {
           const state = get();
           if (state.currentPlayer) {
-            await gameDatabase.updatePlayerScore(state.currentPlayer.id, score);
+            await supabaseGameDatabase.updatePlayerScore(state.currentPlayer.id, score);
             set({ 
               currentPlayer: { ...state.currentPlayer, score },
               currentRoom: state.currentRoom ? {
                 ...state.currentRoom,
-                players: state.currentRoom.players.map(p => 
+                players: state.currentRoom.players.map((p: Player) => 
                   p.id === state.currentPlayer!.id ? { ...p, score } : p
                 )
               } : null
@@ -210,7 +237,7 @@ export const useEnhancedGameStore = create<EnhancedGameStore>()(
         updatePlayerLevel: async (level: number, experience: number) => {
           const state = get();
           if (state.currentPlayer) {
-            await gameDatabase.updatePlayerLevel(state.currentPlayer.id, level, experience);
+            await supabaseGameDatabase.updatePlayerLevel(state.currentPlayer.id, level, experience);
             set({ 
               currentPlayer: { ...state.currentPlayer, level, experience }
             });
@@ -220,7 +247,7 @@ export const useEnhancedGameStore = create<EnhancedGameStore>()(
         addPlayerTitle: async (title: string) => {
           const state = get();
           if (state.currentPlayer) {
-            await gameDatabase.addPlayerTitle(state.currentPlayer.id, title);
+            await supabaseGameDatabase.addPlayerTitle(state.currentPlayer.id, title);
             const updatedTitles = [...state.currentPlayer.titles, title];
             set({ 
               currentPlayer: { ...state.currentPlayer, titles: updatedTitles }
@@ -229,18 +256,18 @@ export const useEnhancedGameStore = create<EnhancedGameStore>()(
         },
 
         // Character operations
-        setCharacter: (character) => set({ character }),
+        setCharacter: (character: Character) => set({ character }),
 
         createPlayerCharacter: async (character: Character) => {
           const state = get();
           if (state.currentPlayer) {
-            await gameDatabase.createPlayerCharacter(state.currentPlayer.id, character);
+            await supabaseGameDatabase.createPlayerCharacter(state.currentPlayer.id, character);
             set({ character });
           }
         },
 
         // Achievement operations
-        addAchievement: (achievement) => set((state) => ({
+        addAchievement: (achievement: Achievement) => set((state: EnhancedGameStore) => ({
           achievements: [...state.achievements, achievement],
           currentPlayer: state.currentPlayer ? {
             ...state.currentPlayer,
@@ -251,9 +278,9 @@ export const useEnhancedGameStore = create<EnhancedGameStore>()(
         unlockAchievement: async (achievement: Omit<Achievement, 'unlockedAt'>) => {
           const state = get();
           if (state.currentPlayer) {
-            await gameDatabase.unlockAchievement(state.currentPlayer.id, achievement);
+            await supabaseGameDatabase.unlockAchievement(state.currentPlayer.id, achievement);
             const newAchievement = { ...achievement, unlockedAt: new Date() };
-            set((state) => ({
+            set((state: EnhancedGameStore) => ({
               achievements: [...state.achievements, newAchievement],
               currentPlayer: state.currentPlayer ? {
                 ...state.currentPlayer,
@@ -264,11 +291,11 @@ export const useEnhancedGameStore = create<EnhancedGameStore>()(
         },
 
         // Inventory operations
-        addInventoryItem: (item) => set((state) => {
-          const existingItem = state.inventory.find(i => i.id === item.id);
+        addInventoryItem: (item: InventoryItem) => set((state: EnhancedGameStore) => {
+          const existingItem = state.inventory.find((i: InventoryItem) => i.id === item.id);
           if (existingItem) {
             return {
-              inventory: state.inventory.map(i =>
+              inventory: state.inventory.map((i: InventoryItem) =>
                 i.id === item.id
                   ? { ...i, quantity: i.quantity + item.quantity }
                   : i
@@ -278,12 +305,12 @@ export const useEnhancedGameStore = create<EnhancedGameStore>()(
           return { inventory: [...state.inventory, item] };
         }),
 
-        removeInventoryItem: (itemId) => set((state) => ({
-          inventory: state.inventory.filter(item => item.id !== itemId)
+        removeInventoryItem: (itemId: string) => set((state: EnhancedGameStore) => ({
+          inventory: state.inventory.filter((item: InventoryItem) => item.id !== itemId)
         })),
 
-        updateInventoryItem: (itemId, updates) => set((state) => ({
-          inventory: state.inventory.map(item =>
+        updateInventoryItem: (itemId: string, updates: Partial<InventoryItem>) => set((state: EnhancedGameStore) => ({
+          inventory: state.inventory.map((item: InventoryItem) =>
             item.id === itemId ? { ...item, ...updates } : item
           )
         })),
@@ -291,12 +318,12 @@ export const useEnhancedGameStore = create<EnhancedGameStore>()(
         addInventoryItemToDatabase: async (item: InventoryItem) => {
           const state = get();
           if (state.currentPlayer) {
-            await gameDatabase.addInventoryItem(state.currentPlayer.id, item);
-            set((state) => {
-              const existingItem = state.inventory.find(i => i.id === item.id);
+            await supabaseGameDatabase.addInventoryItem(state.currentPlayer.id, item);
+            set((state: EnhancedGameStore) => {
+              const existingItem = state.inventory.find((i: InventoryItem) => i.id === item.id);
               if (existingItem) {
                 return {
-                  inventory: state.inventory.map(i =>
+                  inventory: state.inventory.map((i: InventoryItem) =>
                     i.id === item.id
                       ? { ...i, quantity: i.quantity + item.quantity }
                       : i
@@ -309,17 +336,17 @@ export const useEnhancedGameStore = create<EnhancedGameStore>()(
         },
 
         // Message operations
-        addMessage: (message) => set((state) => ({
+        addMessage: (message: Message) => set((state: EnhancedGameStore) => ({
           messages: [...state.messages, message]
         })),
 
-        setMessages: (messages) => set({ messages }),
+        setMessages: (messages: Message[]) => set({ messages }),
 
         addMessageToDatabase: async (message: Message) => {
           const state = get();
           if (state.currentRoom) {
-            await gameDatabase.addGameMessage(state.currentRoom.id, message);
-            set((state) => ({
+            await supabaseGameDatabase.addGameMessage(state.currentRoom.id, message);
+            set((state: EnhancedGameStore) => ({
               messages: [...state.messages, message]
             }));
           }
@@ -329,7 +356,7 @@ export const useEnhancedGameStore = create<EnhancedGameStore>()(
         startGameSession: async (totalStages: number) => {
           const state = get();
           if (state.currentRoom) {
-            return await gameDatabase.startGameSession(state.currentRoom.id, totalStages);
+            return await supabaseGameDatabase.startGameSession(state.currentRoom.id, totalStages);
           }
           throw new Error('No current room');
         },
@@ -337,8 +364,8 @@ export const useEnhancedGameStore = create<EnhancedGameStore>()(
         recordStoryStage: async (stage: { stage: number; description: string; choices: StoryChoice[] }) => {
           const state = get();
           if (state.currentRoom) {
-            const sessionId = await gameDatabase.startGameSession(state.currentRoom.id, 5);
-            await gameDatabase.recordStoryStage(sessionId, stage);
+            const sessionId = await supabaseGameDatabase.startGameSession(state.currentRoom.id, 5);
+            await supabaseGameDatabase.recordStoryStage(sessionId, stage);
           }
         },
 
@@ -349,16 +376,26 @@ export const useEnhancedGameStore = create<EnhancedGameStore>()(
         },
 
         // Game state operations
-        setGameState: (gameState) => set({ gameState }),
-        setConnected: (connected) => set({ isConnected: connected }),
-        setCurrentRoom: (room) => set({ currentRoom: room }),
-        setCurrentRoomCode: (code) => set({ currentRoomCode: code }),
+        setGameState: (gameState: GameState) => set({ gameState }),
+        setConnected: (connected: boolean) => set({ isConnected: connected }),
+        setCurrentRoom: (room: Room | null) => set({ currentRoom: room }),
+        setCurrentRoomCode: (code: string | null) => set({ currentRoomCode: code }),
 
         // UI operations
-        setCurrentPage: (page) => set({ currentPage: page }),
-        setShowCharacterCreation: (show) => set({ showCharacterCreation: show }),
-        setShowInventory: (show) => set({ showInventory: show }),
-        setShowAchievements: (show) => set({ showAchievements: show }),
+        setCurrentPage: (page: 'lobby' | 'game' | 'scoreboard' | 'character' | 'inventory' | 'achievements') => set({ currentPage: page }),
+        setShowCharacterCreation: (show: boolean) => set({ showCharacterCreation: show }),
+        setShowInventory: (show: boolean) => set({ showInventory: show }),
+        setShowAchievements: (show: boolean) => {
+          set({ showAchievements: show });
+          if (show) {
+            const state = get();
+            if (state.currentPlayer) {
+              supabaseGameDatabase.getAchievementsByPlayerId(state.currentPlayer.id)
+                .then((items) => set({ achievements: items }))
+                .catch((err) => console.error('Failed to load achievements:', err));
+            }
+          }
+        },
 
         // Computed values
         getTotalExperience: () => {
@@ -368,24 +405,24 @@ export const useEnhancedGameStore = create<EnhancedGameStore>()(
 
         getTotalAchievementPoints: () => {
           const state = get();
-          return state.achievements.reduce((total, achievement) => total + achievement.points, 0);
+          return state.achievements.reduce((total: number, achievement: Achievement) => total + achievement.points, 0);
         },
 
         getInventoryWeight: () => {
           const state = get();
-          return state.inventory.reduce((total, item) => total + (item.weight * item.quantity), 0);
+          return state.inventory.reduce((total: number, item: InventoryItem) => total + (item.weight * item.quantity), 0);
         },
 
         getInventoryValue: () => {
           const state = get();
-          return state.inventory.reduce((total, item) => total + (item.value * item.quantity), 0);
+          return state.inventory.reduce((total: number, item: InventoryItem) => total + (item.value * item.quantity), 0);
         },
 
         // Statistics
         getRoomStatistics: async () => {
           const state = get();
           if (state.currentRoom) {
-            return await gameDatabase.getRoomStatistics(state.currentRoom.id);
+            return await supabaseGameDatabase.getRoomStatistics(state.currentRoom.id);
           }
           throw new Error('No current room');
         },
@@ -393,7 +430,7 @@ export const useEnhancedGameStore = create<EnhancedGameStore>()(
         getPlayerStatistics: async () => {
           const state = get();
           if (state.currentPlayer) {
-            return await gameDatabase.getPlayerStatistics(state.currentPlayer.id);
+            return await supabaseGameDatabase.getPlayerStatistics(state.currentPlayer.id);
           }
           throw new Error('No current player');
         },
@@ -413,15 +450,27 @@ export const useEnhancedGameStore = create<EnhancedGameStore>()(
           showCharacterCreation: false,
           showInventory: false,
           showAchievements: false
-        })
+        }),
+
+        // Room expiration
+        expireRoom: async (roomId: string) => {
+          try {
+            await supabaseGameDatabase.updateRoomStatus(roomId, 'finished');
+            console.log('Room expired:', roomId);
+          } catch (error) {
+            console.error('Failed to expire room:', error);
+            throw error;
+          }
+        }
       }),
       {
         name: 'dnd-bolt-enhanced-storage',
-        partialize: (state) => ({
+        partialize: (state: EnhancedGameStore) => ({
           currentPlayer: state.currentPlayer,
           character: state.character,
           achievements: state.achievements,
           inventory: state.inventory,
+          currentRoom: state.currentRoom,
           currentRoomCode: state.currentRoomCode
         })
       }

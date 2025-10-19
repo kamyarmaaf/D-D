@@ -1,6 +1,7 @@
 export interface Player {
   id: string;
   nickname: string;
+  email?: string;
   age: number;
   genre: 'Fantasy' | 'Mystery' | 'Horror' | 'Comedy';
   score: number;
@@ -112,7 +113,7 @@ export interface Achievement {
   icon: string;
   points: number;
   unlockedAt: Date;
-  category: 'combat' | 'exploration' | 'social' | 'story' | 'special';
+  category: 'dice' | 'progress' | 'victory' | 'score' | 'level' | 'choice' | 'special';
 }
 
 export interface Room {
@@ -140,7 +141,7 @@ export interface Message {
 
 export interface GameState {
   currentTurn: number;
-  phase: 'voting' | 'playing' | 'scoring';
+  phase: 'voting' | 'playing' | 'scoring' | 'finished';
   votes: Record<string, number>;
   scenarios: string[];
   selectedScenario?: number;
@@ -152,9 +153,19 @@ export interface GameState {
   waitingForDiceRoll?: boolean;
   selectedChoice?: {
     choiceId: number;
+    choiceText: string;
     dc: number;
   };
   autoProgressAudio?: boolean;
+  // Game end conditions
+  gameEnd?: {
+    type: 'win' | 'lose' | 'timeout' | 'abandoned';
+    reason: string;
+    finalScore?: number;
+    completedStages: number;
+    totalStages: number;
+    endMessage: string;
+  };
 }
 
 export interface StoryStage {
@@ -223,7 +234,45 @@ export interface StoryResponse {
   choices: StoryflowChoice[];         // 2 تا 4 گزینهٔ بعدی
   is_game_over: boolean;
   state_version: number;              // برای همگام‌سازی درخواست بعدی
+  // Game end information
+  game_end?: {
+    type: 'win' | 'lose' | 'timeout' | 'abandoned';
+    reason: string;
+    final_score?: number;
+    completed_stages: number;
+    total_stages: number;
+    end_message: string;
+  };
   // اختیاری: اگر n8n خروجی صدا بده
   audio?: { format: "mp3" | "wav"; base64: string } | { url: string };
+}
+
+// ==== Webhook API DTOs ====
+
+export interface WebhookRequest {
+  room_id: string;
+  genre: string;
+  stage: number;
+  user_choice: string;
+  user_dice: string;
+}
+
+export interface WebhookResponse {
+  success: boolean;
+  message?: string;
+  data?: any;
+}
+
+export interface N8nStoryResponse {
+  id: number;
+  created_at: string;
+  stage: number;
+  room_id: string;
+  genre: string;
+  choice1: string;
+  choice2: string;
+  choice3: string;
+  description: string;
+  stage_text: string;
 }
 

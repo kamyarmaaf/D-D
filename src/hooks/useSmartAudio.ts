@@ -139,7 +139,7 @@ export const useSmartAudio = (
       await playVoiceFile(voiceFilePath);
     } else if (shouldUseTTS) {
       // Use TTS
-      await playTTS(text);
+      await playTTS();
     } else {
       setState(prev => ({
         ...prev,
@@ -189,7 +189,7 @@ export const useSmartAudio = (
         }
       });
 
-      audio.addEventListener('error', (e) => {
+      audio.addEventListener('error', () => {
         const errorMessage = `Failed to load voice file: ${voiceFilePath}`;
         setState(prev => ({
           ...prev,
@@ -200,7 +200,7 @@ export const useSmartAudio = (
         
         // Fallback to TTS if voice file fails
         if (preferredMode === 'auto') {
-          playTTS(storyText);
+          playTTS();
         } else if (onError) {
           onError(errorMessage);
         }
@@ -227,14 +227,14 @@ export const useSmartAudio = (
       
       // Fallback to TTS if voice file fails
       if (preferredMode === 'auto') {
-        playTTS(storyText);
+        playTTS();
       } else if (onError) {
         onError(errorMessage);
       }
     }
   };
 
-  const playTTS = async (text: string): Promise<void> => {
+  const playTTS = async (): Promise<void> => {
     setState(prev => ({
       ...prev,
       currentAudioType: 'tts',

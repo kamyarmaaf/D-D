@@ -32,57 +32,11 @@ export class TTSService {
   }
 
   /**
-   * Convert text to speech using HeyGen API
+   * Convert text to speech using HeyGen API (disabled)
    */
   async convertToSpeech(text: string): Promise<TTSResponse> {
-    try {
-      // Clean and prepare text for TTS
-      const cleanText = this.cleanText(text);
-      
-      if (!cleanText.trim()) {
-        return {
-          success: false,
-          error: 'No text provided for speech conversion'
-        };
-      }
-
-      // Make API request to HeyGen
-      const response = await fetch('https://api.heygen.com/v1/tts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': this.config.apiKey
-        },
-        body: JSON.stringify({
-          text: cleanText,
-          voice_id: this.config.voiceId,
-          language: this.config.language,
-          speed: this.config.speed,
-          volume: this.config.volume,
-          format: 'mp3'
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      
-      return {
-        success: true,
-        audioUrl: result.audio_url,
-        duration: result.duration
-      };
-
-    } catch (error) {
-      console.error('TTS Conversion Error:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
-      };
-    }
+    console.warn('HeyGen TTS is currently disabled');
+    return { success: false, error: 'HeyGen disabled' };
   }
 
   /**
@@ -253,13 +207,13 @@ export class TTSService {
 
 // Default configuration
 export const defaultTTSConfig: TTSConfig = {
-  apiKey: 'NWI1YTc0ZTFlYTBhNDdlZTgxNjFiMmYxMWRlNDRiOTItMTc1ODg3OTEzNQ==', // Provided API key
-  voiceId: 'e2744777fa994deaa2aac7fa3e054acc', // Provided choice ID
-  language: 'fa', // Persian language code
-  speed: 1.0, // Normal speed
-  volume: 80, // 80% volume
-  autoPlay: true, // Auto-play audio
-  autoProgress: true // Auto-progress to next stage
+  apiKey: '',
+  voiceId: '',
+  language: 'fa',
+  speed: 1.0,
+  volume: 80,
+  autoPlay: false,
+  autoProgress: false
 };
 
 // Create singleton instance

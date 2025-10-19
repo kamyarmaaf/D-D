@@ -23,8 +23,7 @@ export const AudioStoryIntegration: React.FC<AudioStoryIntegrationProps> = ({
     messages,
     gameState,
     currentStage,
-    isConnected,
-    audioStory
+    isConnected
   } = useGameSocket(roomCode, genre as any);
 
   const handleStoryComplete = () => {

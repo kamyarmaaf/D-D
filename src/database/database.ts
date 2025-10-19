@@ -12,18 +12,44 @@ export class DatabaseService {
   // Initialize the database
   async initialize(): Promise<void> {
     try {
-      this.SQL = await initSqlJs({
-        // You can load the wasm file from a CDN or local file
-        locateFile: (file: string) => `https://sql.js.org/dist/${file}`
-      });
+      // Try to initialize with local WASM file first
+      try {
+        this.SQL = await initSqlJs({
+          locateFile: (file: string) => {
+            if (file.endsWith('.wasm')) {
+              return new URL('sql.js/dist/sql-wasm.wasm', import.meta.url).href;
+            }
+            return file;
+          }
+        });
+      } catch (localError) {
+        console.warn('Failed to load local WASM, falling back to CDN:', localError);
+        // Fallback to CDN if local file fails
+        this.SQL = await initSqlJs({
+          locateFile: (file: string) => `https://sql.js.org/dist/${file}`
+        });
+      }
       
       // Try to load existing database from localStorage
       const savedDb = localStorage.getItem(DB_NAME);
+      console.log('Debug - Loading database from localStorage:', {
+        hasSavedDb: !!savedDb,
+        savedDbLength: savedDb ? savedDb.length : 0
+      });
+      
       if (savedDb) {
-        const data = new Uint8Array(JSON.parse(savedDb));
-        this.db = new this.SQL.Database(data);
+        try {
+          const data = new Uint8Array(JSON.parse(savedDb));
+          this.db = new this.SQL.Database(data);
+          console.log('Debug - Successfully loaded database from localStorage');
+        } catch (parseError) {
+          console.warn('Failed to parse saved database, creating new one:', parseError);
+          this.db = new this.SQL.Database();
+          await this.createTables();
+        }
       } else {
         // Create new database
+        console.log('Debug - No saved database found, creating new one');
         this.db = new this.SQL.Database();
         await this.createTables();
       }
@@ -31,7 +57,16 @@ export class DatabaseService {
       console.log('Database initialized successfully');
     } catch (error) {
       console.error('Failed to initialize database:', error);
-      throw error;
+      // Create a fallback in-memory database
+      try {
+        this.SQL = await initSqlJs();
+        this.db = new this.SQL.Database();
+        await this.createTables();
+        console.log('Database initialized with fallback method');
+      } catch (fallbackError) {
+        console.error('Complete database initialization failure:', fallbackError);
+        throw new Error('Database initialization failed completely');
+      }
     }
   }
 
@@ -173,87 +208,170 @@ export class DatabaseService {
 
   // Save database to localStorage
   private saveDatabase(): void {
-    const data = this.db.export();
-    const buffer = Array.from(data);
-    localStorage.setItem(DB_NAME, JSON.stringify(buffer));
+    try {
+      if (!this.db) {
+        console.warn('Database not initialized, cannot save');
+        return;
+      }
+      const data = this.db.export();
+      const buffer = Array.from(data);
+      localStorage.setItem(DB_NAME, JSON.stringify(buffer));
+      console.log('Debug - Database saved to localStorage, size:', buffer.length);
+    } catch (error) {
+      console.error('Failed to save database to localStorage:', error);
+      // Don't throw error to prevent breaking the app
+    }
   }
 
   // Room operations
   async createRoom(room: Omit<Room, 'players'>): Promise<Room> {
-    // Validate required fields
-    if (!room.code || room.code === 'undefined' || room.code === 'null') {
-      console.error('Invalid room code:', room.code);
-      throw new Error('Room code is required and must be a valid string');
+    try {
+      console.log('Debug - createRoom called with room object:', {
+        id: room.id,
+        code: room.code,
+        codeType: typeof room.code,
+        codeLength: room.code ? room.code.length : 'undefined'
+      });
+      
+      // Validate required fields
+      if (!room.code || room.code === 'undefined' || room.code === 'null') {
+        console.error('Invalid room code:', room.code);
+        throw new Error('Room code is required and must be a valid string');
+      }
+      
+      if (!this.db) {
+        throw new Error('Database not initialized');
+      }
+      
+      console.log('Creating room with data:', {
+        id: room.id,
+        code: room.code,
+        status: room.status,
+        maxPlayers: room.maxPlayers,
+        selectedGenre: room.selectedGenre
+      });
+      
+      // Use direct SQL execution instead of prepared statement due to SQL.js parameter binding issue
+      const sql = `
+        INSERT INTO rooms (id, code, status, max_players, selected_genre, created_at, host_player_id, current_stage, max_stages, is_game_active)
+        VALUES ('${room.id}', '${room.code}', '${room.status}', ${room.maxPlayers}, '${room.selectedGenre || 'fantasy'}', '${room.createdAt.toISOString()}', ${room.hostPlayerId ? `'${room.hostPlayerId}'` : 'NULL'}, ${room.currentStage || 1}, ${room.maxStages || 5}, ${room.isGameActive || false})
+      `;
+      
+      console.log('Debug - Using direct SQL execution:', sql);
+      
+      try {
+        this.db.exec(sql);
+      } catch (sqlError) {
+        console.error('Debug - SQL execution failed with error:', sqlError);
+        throw sqlError;
+      }
+      
+      this.saveDatabase();
+      
+      const createdRoom = await this.getRoomById(room.id);
+      if (!createdRoom) {
+        throw new Error('Failed to create room');
+      }
+      
+      console.log('Debug - Created room returned:', {
+        id: createdRoom.id,
+        code: createdRoom.code,
+        codeType: typeof createdRoom.code,
+        codeLength: createdRoom.code ? createdRoom.code.length : 'undefined'
+      });
+      
+      return createdRoom;
+    } catch (error) {
+      console.error('Error creating room:', error);
+      throw error;
     }
-    
-    console.log('Creating room with data:', {
-      id: room.id,
-      code: room.code,
-      codeType: typeof room.code,
-      codeLength: room.code ? room.code.length : 'undefined',
-      status: room.status,
-      maxPlayers: room.maxPlayers,
-      selectedGenre: room.selectedGenre
-    });
-    
-    const stmt = this.db.prepare(`
-      INSERT INTO rooms (id, code, status, max_players, selected_genre, created_at, host_player_id, current_stage, max_stages, is_game_active)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    
-    stmt.run(
-      room.id,
-      room.code, // room.code is already validated above
-      room.status,
-      room.maxPlayers,
-      room.selectedGenre || 'fantasy',
-      room.createdAt.toISOString(),
-      room.hostPlayerId || null,
-      room.currentStage || 1,
-      room.maxStages || 5,
-      room.isGameActive || false
-    );
-    
-    this.saveDatabase();
-    const createdRoom = await this.getRoomById(room.id);
-    if (!createdRoom) {
-      throw new Error('Failed to create room');
-    }
-    return createdRoom;
   }
 
   async getRoomById(id: string): Promise<Room | null> {
-    const stmt = this.db.prepare('SELECT * FROM rooms WHERE id = ?');
-    const result = stmt.get(id);
+    try {
+      if (!this.db) {
+        console.warn('Database not initialized');
+        return null;
+      }
+      // Use direct SQL execution instead of prepared statement
+      const sql = `SELECT * FROM rooms WHERE id = '${id}'`;
+      const results = this.db.exec(sql);
+      
+      if (!results || results.length === 0) {
+        return null;
+      }
+      
+      const rows = results[0].values;
+      const columns = results[0].columns;
+      
+      if (rows.length === 0) {
+        return null;
+      }
+      
+      const result: any = {};
+      columns.forEach((col: string, index: number) => {
+        result[col] = rows[0][index];
+      });
     
-    if (!result) return null;
-    
-    const players = await this.getPlayersByRoomId(id);
-    
-    return {
-      id: result.id,
-      code: result.code,
-      players,
-      status: result.status,
-      maxPlayers: result.max_players,
-      createdAt: new Date(result.created_at),
-      selectedGenre: result.selected_genre,
-      hostPlayerId: result.host_player_id,
-      currentStage: result.current_stage,
-      maxStages: result.max_stages,
-      isGameActive: result.is_game_active
-    };
+      const players = await this.getPlayersByRoomId(id);
+      
+      return {
+        id: result.id,
+        code: result.code,
+        players,
+        status: result.status,
+        maxPlayers: result.max_players,
+        createdAt: new Date(result.created_at),
+        selectedGenre: result.selected_genre,
+        hostPlayerId: result.host_player_id,
+        currentStage: result.current_stage,
+        maxStages: result.max_stages,
+        isGameActive: result.is_game_active
+      };
+    } catch (error) {
+      console.error('Error getting room by ID:', error);
+      return null;
+    }
   }
 
   async getRoomByCode(code: string): Promise<Room | null> {
-    const stmt = this.db.prepare('SELECT * FROM rooms WHERE code = ?');
-    const result = stmt.get(code);
+    console.log('Debug - getRoomByCode called with:', {
+      code,
+      codeType: typeof code,
+      codeLength: code ? code.length : 'undefined'
+    });
     
-    if (!result) return null;
+    // Use direct SQL execution instead of prepared statement
+    const sql = `SELECT * FROM rooms WHERE code = '${code}'`;
+    const results = this.db.exec(sql);
+    
+    if (!results || results.length === 0) {
+      console.log('Debug - getRoomByCode result: not found');
+      return null;
+    }
+    
+    const rows = results[0].values;
+    const columns = results[0].columns;
+    
+    if (rows.length === 0) {
+      console.log('Debug - getRoomByCode result: not found');
+      return null;
+    }
+    
+    const result: any = {};
+    columns.forEach((col: string, index: number) => {
+      result[col] = rows[0][index];
+    });
+    
+    console.log('Debug - getRoomByCode result:', {
+      found: !!result,
+      resultCode: result?.code,
+      resultCodeType: typeof result?.code
+    });
     
     const players = await this.getPlayersByRoomId(result.id);
     
-    return {
+    const room = {
       id: result.id,
       code: result.code,
       players,
@@ -266,6 +384,14 @@ export class DatabaseService {
       maxStages: result.max_stages,
       isGameActive: result.is_game_active
     };
+    
+    console.log('Debug - getRoomByCode returning room:', {
+      id: room.id,
+      code: room.code,
+      codeType: typeof room.code
+    });
+    
+    return room;
   }
 
   async updateRoom(id: string, updates: Partial<Room>): Promise<void> {
@@ -299,23 +425,18 @@ export class DatabaseService {
 
   // Player operations
   async createPlayer(player: Omit<Player, 'character' | 'achievements'>): Promise<Player> {
-    const stmt = this.db.prepare(`
+    // Use direct SQL execution instead of prepared statement due to SQL.js parameter binding issue
+    const sql = `
       INSERT INTO players (id, room_id, nickname, age, genre, score, titles, is_host, level, experience)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+      VALUES ('${player.id}', '${player.roomId || ''}', '${player.nickname}', ${player.age}, '${player.genre}', ${player.score}, '${JSON.stringify(player.titles)}', ${player.isHost}, ${player.level}, ${player.experience})
+    `;
     
-    stmt.run(
-      player.id,
-      player.roomId || '',
-      player.nickname,
-      player.age,
-      player.genre,
-      player.score,
-      JSON.stringify(player.titles),
-      player.isHost,
-      player.level,
-      player.experience
-    );
+      try {
+        this.db.exec(sql);
+      } catch (sqlError) {
+        console.error('Debug - Player creation SQL failed with error:', sqlError);
+        throw sqlError;
+      }
     
     this.saveDatabase();
     const createdPlayer = await this.getPlayerById(player.id);
@@ -326,10 +447,25 @@ export class DatabaseService {
   }
 
   async getPlayerById(id: string): Promise<Player | null> {
-    const stmt = this.db.prepare('SELECT * FROM players WHERE id = ?');
-    const result = stmt.get(id);
+    // Use direct SQL execution instead of prepared statement
+    const sql = `SELECT * FROM players WHERE id = '${id}'`;
+    const results = this.db.exec(sql);
     
-    if (!result) return null;
+    if (!results || results.length === 0) {
+      return null;
+    }
+    
+    const rows = results[0].values;
+    const columns = results[0].columns;
+    
+    if (rows.length === 0) {
+      return null;
+    }
+    
+    const result: any = {};
+    columns.forEach((col: string, index: number) => {
+      result[col] = rows[0][index];
+    });
     
     const character = await this.getCharacterByPlayerId(id);
     const achievements = await this.getAchievementsByPlayerId(id);
@@ -351,11 +487,24 @@ export class DatabaseService {
   }
 
   async getPlayersByRoomId(roomId: string): Promise<Player[]> {
-    const stmt = this.db.prepare('SELECT * FROM players WHERE room_id = ?');
-    const results = stmt.all(roomId);
+    // Use direct SQL execution instead of prepared statement
+    const sql = `SELECT * FROM players WHERE room_id = '${roomId}'`;
+    const results = this.db.exec(sql);
+    
+    if (!results || results.length === 0) {
+      return [];
+    }
     
     const players = [];
-    for (const result of results) {
+    const rows = results[0].values;
+    const columns = results[0].columns;
+    
+    for (const row of rows) {
+      const result: any = {};
+      columns.forEach((col: string, index: number) => {
+        result[col] = row[index];
+      });
+      
       const character = await this.getCharacterByPlayerId(result.id);
       const achievements = await this.getAchievementsByPlayerId(result.id);
       
@@ -436,10 +585,25 @@ export class DatabaseService {
   }
 
   async getCharacterByPlayerId(playerId: string): Promise<Character | null> {
-    const stmt = this.db.prepare('SELECT * FROM characters WHERE player_id = ?');
-    const result = stmt.get([playerId]);
+    // Use direct SQL execution instead of prepared statement
+    const sql = `SELECT * FROM characters WHERE player_id = '${playerId}'`;
+    const results = this.db.exec(sql);
     
-    if (!result) return null;
+    if (!results || results.length === 0) {
+      return null;
+    }
+    
+    const rows = results[0].values;
+    const columns = results[0].columns;
+    
+    if (rows.length === 0) {
+      return null;
+    }
+    
+    const result: any = {};
+    columns.forEach((col: string, index: number) => {
+      result[col] = rows[0][index];
+    });
     
     return {
       id: result.id,
@@ -558,17 +722,32 @@ export class DatabaseService {
   }
 
   async getMessagesByRoomId(roomId: string): Promise<Message[]> {
-    const stmt = this.db.prepare('SELECT * FROM messages WHERE room_id = ? ORDER BY timestamp ASC');
-    const results = stmt.all(roomId);
+    // Use direct SQL execution instead of prepared statement
+    const sql = `SELECT * FROM messages WHERE room_id = '${roomId}' ORDER BY timestamp ASC`;
+    const results = this.db.exec(sql);
     
-    return results.map((result: any) => ({
-      id: result.id,
-      type: result.type as 'player' | 'ai' | 'system' | 'action',
-      sender: result.sender,
-      content: result.content,
-      timestamp: new Date(result.timestamp),
-      diceRoll: result.dice_roll
-    })) as Message[];
+    if (!results || results.length === 0) {
+      return [];
+    }
+    
+    const rows = results[0].values;
+    const columns = results[0].columns;
+    
+    return rows.map((row: any[]) => {
+      const result: any = {};
+      columns.forEach((col: string, index: number) => {
+        result[col] = row[index];
+      });
+      
+      return {
+        id: result.id,
+        type: result.type as 'player' | 'ai' | 'system' | 'action',
+        sender: result.sender,
+        content: result.content,
+        timestamp: new Date(result.timestamp),
+        diceRoll: result.dice_roll
+      };
+    }) as Message[];
   }
 
   // Achievement operations
@@ -593,18 +772,33 @@ export class DatabaseService {
   }
 
   async getAchievementsByPlayerId(playerId: string): Promise<Achievement[]> {
-    const stmt = this.db.prepare('SELECT * FROM achievements WHERE player_id = ? ORDER BY unlocked_at DESC');
-    const results = stmt.all(playerId);
+    // Use direct SQL execution instead of prepared statement
+    const sql = `SELECT * FROM achievements WHERE player_id = '${playerId}' ORDER BY unlocked_at DESC`;
+    const results = this.db.exec(sql);
     
-    return results.map((result: any) => ({
-      id: result.id,
-      name: result.achievement_name,
-      description: result.description,
-      icon: result.icon,
-      points: result.points,
-      unlockedAt: new Date(result.unlocked_at),
-      category: result.category as 'combat' | 'exploration' | 'social' | 'story' | 'special'
-    })) as Achievement[];
+    if (!results || results.length === 0) {
+      return [];
+    }
+    
+    const rows = results[0].values;
+    const columns = results[0].columns;
+    
+    return rows.map((row: any[]) => {
+      const result: any = {};
+      columns.forEach((col: string, index: number) => {
+        result[col] = row[index];
+      });
+      
+      return {
+        id: result.id,
+        name: result.achievement_name,
+        description: result.description,
+        icon: result.icon,
+        points: result.points,
+        unlockedAt: new Date(result.unlocked_at),
+        category: result.category as 'combat' | 'exploration' | 'social' | 'story' | 'special'
+      };
+    }) as Achievement[];
   }
 
   // Inventory operations
@@ -631,20 +825,35 @@ export class DatabaseService {
   }
 
   async getInventoryByPlayerId(playerId: string): Promise<InventoryItem[]> {
-    const stmt = this.db.prepare('SELECT * FROM inventory_items WHERE player_id = ? ORDER BY created_at DESC');
-    const results = stmt.all(playerId);
+    // Use direct SQL execution instead of prepared statement
+    const sql = `SELECT * FROM inventory_items WHERE player_id = '${playerId}' ORDER BY created_at DESC`;
+    const results = this.db.exec(sql);
     
-    return results.map((result: any) => ({
-      id: result.id,
-      name: result.item_name,
-      description: result.description,
-      type: result.item_type as 'weapon' | 'armor' | 'consumable' | 'tool' | 'misc',
-      rarity: result.rarity as 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary',
-      value: result.value,
-      weight: result.weight,
-      quantity: result.quantity,
-      effects: JSON.parse(result.effects)
-    })) as InventoryItem[];
+    if (!results || results.length === 0) {
+      return [];
+    }
+    
+    const rows = results[0].values;
+    const columns = results[0].columns;
+    
+    return rows.map((row: any[]) => {
+      const result: any = {};
+      columns.forEach((col: string, index: number) => {
+        result[col] = row[index];
+      });
+      
+      return {
+        id: result.id,
+        name: result.item_name,
+        description: result.description,
+        type: result.item_type as 'weapon' | 'armor' | 'consumable' | 'tool' | 'misc',
+        rarity: result.rarity as 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary',
+        value: result.value,
+        weight: result.weight,
+        quantity: result.quantity,
+        effects: JSON.parse(result.effects)
+      };
+    }) as InventoryItem[];
   }
 
   // Game session operations
@@ -686,6 +895,68 @@ export class DatabaseService {
     this.saveDatabase();
   }
 
+  // Additional utility methods
+  async getAllRooms(): Promise<Room[]> {
+    try {
+      if (!this.db) {
+        console.warn('Database not initialized');
+        return [];
+      }
+      // Use direct SQL execution instead of prepared statement
+      const sql = 'SELECT * FROM rooms ORDER BY created_at DESC';
+      const results = this.db.exec(sql);
+      
+      if (!results || results.length === 0) {
+        return [];
+      }
+      
+      const rows = results[0].values;
+      const columns = results[0].columns;
+      
+      const rooms: Room[] = [];
+      for (const row of rows) {
+        const result: any = {};
+        columns.forEach((col: string, index: number) => {
+          result[col] = row[index];
+        });
+        
+        const players = await this.getPlayersByRoomId(result.id);
+        rooms.push({
+          id: result.id,
+          code: result.code,
+          players,
+          status: result.status,
+          maxPlayers: result.max_players,
+          createdAt: new Date(result.created_at),
+          selectedGenre: result.selected_genre,
+          hostPlayerId: result.host_player_id,
+          currentStage: result.current_stage,
+          maxStages: result.max_stages,
+          isGameActive: result.is_game_active
+        });
+      }
+      return rooms;
+    } catch (error) {
+      console.error('Error getting all rooms:', error);
+      return [];
+    }
+  }
+
+  async addPlayerToRoom(roomId: string, playerId: string): Promise<void> {
+    try {
+      if (!this.db) {
+        throw new Error('Database not initialized');
+      }
+      const stmt = this.db.prepare('UPDATE players SET room_id = ? WHERE id = ?');
+      stmt.run(roomId, playerId);
+      this.saveDatabase();
+    } catch (error) {
+      console.error('Error adding player to room:', error);
+      throw error;
+    }
+  }
+
+
   // Cleanup operations
   async clearDatabase(): Promise<void> {
     this.db.exec('DELETE FROM achievements');
@@ -699,6 +970,62 @@ export class DatabaseService {
     this.db.exec('DELETE FROM rooms');
     this.saveDatabase();
   }
+
+  // Debug method to check room data
+  async debugRoomData(roomId: string): Promise<void> {
+    try {
+      if (!this.db) {
+        console.warn('Database not initialized');
+        return;
+      }
+      
+      // Use direct SQL execution instead of prepared statement
+      const sql = `SELECT * FROM rooms WHERE id = '${roomId}'`;
+      const results = this.db.exec(sql);
+      
+      if (!results || results.length === 0) {
+        console.log('Debug - No room found with id:', roomId);
+        return;
+      }
+      
+      const rows = results[0].values;
+      const columns = results[0].columns;
+      
+      if (rows.length === 0) {
+        console.log('Debug - No room found with id:', roomId);
+        return;
+      }
+      
+      const result: any = {};
+      columns.forEach((col: string, index: number) => {
+        result[col] = rows[0][index];
+      });
+      
+      console.log('Debug - Raw room data from database:', result);
+      
+      if (result) {
+        console.log('Debug - Room code from database:', {
+          code: result.code,
+          codeType: typeof result.code,
+          codeLength: result.code ? result.code.length : 'undefined',
+          isCodeEmpty: result.code === '',
+          isCodeNull: result.code === null,
+          isCodeUndefined: result.code === undefined
+        });
+      }
+      
+      // Also check what's in localStorage
+      const savedDb = localStorage.getItem(DB_NAME);
+      console.log('Debug - localStorage data:', {
+        hasData: !!savedDb,
+        dataLength: savedDb ? savedDb.length : 0,
+        dataPreview: savedDb ? savedDb.substring(0, 100) + '...' : 'No data'
+      });
+    } catch (error) {
+      console.error('Debug - Error checking room data:', error);
+    }
+  }
+
 
   // Close database connection
   close(): void {

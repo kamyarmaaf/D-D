@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, Hash, QrCode, Wand2, Clock, Search, Ghost, Smile, Rocket, Crown } from 'lucide-react';
+import { Users, Plus, Hash, Wand2, Clock, Search, Ghost, Smile, Rocket, Crown } from 'lucide-react';
 import { useLanguage } from '../hooks/useLanguage';
 import { QRCodeGenerator } from './QRCodeGenerator';
 import InfoBanner from './InfoBanner';
@@ -25,8 +25,7 @@ export const EnhancedLobby: React.FC<EnhancedLobbyProps> = ({ onJoinRoom }) => {
     initializeDatabase,
     createRoom,
     joinRoom,
-    currentRoom,
-    currentPlayer
+    currentRoom
   } = useEnhancedGameStore();
 
   // Initialize database on component mount
@@ -229,7 +228,7 @@ export const EnhancedLobby: React.FC<EnhancedLobbyProps> = ({ onJoinRoom }) => {
                       type="text"
                       value={nickname}
                       onChange={(e) => setNickname(e.target.value)}
-                      className="w-full px-4 py-3 bg-amber-50/80 border border-amber-400 rounded-xl text-ink placeholder-ink-muted focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-300 text-base"
+                      className="w-full px-4 py-3 bg-amber-50/80 dark:bg-parchment/20 border border-amber-400 dark:border-amber-500/50 rounded-xl text-ink dark:text-black placeholder-ink-muted dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-300 text-base"
                       placeholder={t('lobby.nickname')}
                       maxLength={20}
                       disabled={isLoading}
@@ -328,7 +327,7 @@ export const EnhancedLobby: React.FC<EnhancedLobbyProps> = ({ onJoinRoom }) => {
                       type="text"
                       value={nickname}
                       onChange={(e) => setNickname(e.target.value)}
-                      className="w-full px-4 py-3 bg-blue-50/80 border border-blue-400 rounded-xl text-ink placeholder-ink-muted focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-base"
+                      className="w-full px-4 py-3 bg-blue-50/80 dark:bg-parchment/20 border border-blue-400 dark:border-blue-500/50 rounded-xl text-ink dark:text-black placeholder-ink-muted dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-base"
                       placeholder={t('lobby.nickname')}
                       maxLength={20}
                       disabled={isLoading}
@@ -343,7 +342,7 @@ export const EnhancedLobby: React.FC<EnhancedLobbyProps> = ({ onJoinRoom }) => {
                       type="text"
                       value={roomCode}
                       onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                      className="w-full px-4 py-3 bg-blue-50/80 border border-blue-400 rounded-xl text-ink placeholder-ink-muted focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-base font-mono"
+                      className="w-full px-4 py-3 bg-blue-50/80 dark:bg-parchment/20 border border-blue-400 dark:border-blue-500/50 rounded-xl text-ink dark:text-black placeholder-ink-muted dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-base font-mono"
                       placeholder="ABC123"
                       maxLength={6}
                       disabled={isLoading}

@@ -10,26 +10,32 @@ interface AchievementsProps {
 }
 
 const categoryIcons = {
-  combat: Target,
-  exploration: BookOpen,
-  social: Users,
-  story: Star,
+  dice: Target,
+  progress: BookOpen,
+  victory: Users,
+  score: Star,
+  level: Zap,
+  choice: Target,
   special: Zap
 };
 
 const categoryColors = {
-  combat: 'from-red-500 to-rose-500',
-  exploration: 'from-amber-500 to-yellow-500',
-  social: 'from-blue-500 to-cyan-500',
-  story: 'from-purple-500 to-indigo-500',
+  dice: 'from-red-500 to-rose-500',
+  progress: 'from-amber-500 to-yellow-500',
+  victory: 'from-blue-500 to-cyan-500',
+  score: 'from-purple-500 to-indigo-500',
+  level: 'from-green-500 to-emerald-500',
+  choice: 'from-orange-500 to-red-500',
   special: 'from-yellow-500 to-orange-500'
 };
 
 const categoryBorders = {
-  combat: 'border-red-500/30',
-  exploration: 'border-amber-500/30',
-  social: 'border-blue-500/30',
-  story: 'border-purple-500/30',
+  dice: 'border-red-500/30',
+  progress: 'border-amber-500/30',
+  victory: 'border-blue-500/30',
+  score: 'border-purple-500/30',
+  level: 'border-green-500/30',
+  choice: 'border-orange-500/30',
   special: 'border-yellow-500/30'
 };
 
@@ -42,15 +48,17 @@ export const Achievements: React.FC<AchievementsProps> = ({
   const [sortBy, setSortBy] = useState<string>('unlocked');
   const { t } = useLanguage();
 
+
   const filteredAchievements = achievements.filter(achievement => {
     if (filter === 'all') return true;
     return achievement.category === filter;
   });
 
+  const toTime = (val: any) => (val instanceof Date ? val.getTime() : new Date(val).getTime());
   const sortedAchievements = [...filteredAchievements].sort((a, b) => {
     switch (sortBy) {
       case 'unlocked':
-        return b.unlockedAt.getTime() - a.unlockedAt.getTime();
+        return toTime(b.unlockedAt) - toTime(a.unlockedAt);
       case 'points':
         return b.points - a.points;
       case 'name':
@@ -98,8 +106,9 @@ export const Achievements: React.FC<AchievementsProps> = ({
 
         {/* Category Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-4 sm:mb-6">
-          {Object.entries(categoryStats).map(([category, stats]) => {
+          {Object.entries(categoryStats).map(([category]) => {
             const Icon = categoryIcons[category as keyof typeof categoryIcons];
+            const stats = categoryStats[category as keyof typeof categoryStats];
             return (
               <div key={category} className={`glass-card p-3 sm:p-4 text-center border ${categoryBorders[category as keyof typeof categoryBorders]}`}>
                 <div className="flex items-center justify-center mb-1 sm:mb-2">
@@ -161,7 +170,7 @@ export const Achievements: React.FC<AchievementsProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
         {sortedAchievements.map((achievement) => {
           const Icon = categoryIcons[achievement.category];
-          const isUnlocked = achievement.unlockedAt.getTime() > 0;
+          const isUnlocked = toTime(achievement.unlockedAt) > 0;
           
           return (
             <div
@@ -226,7 +235,7 @@ export const Achievements: React.FC<AchievementsProps> = ({
 
               {isUnlocked && (
                 <div className="text-xs text-ink-muted">
-                  Unlocked: {achievement.unlockedAt.toLocaleDateString()}
+                  Unlocked: {new Date(achievement.unlockedAt as any).toLocaleDateString()}
                 </div>
               )}
 
@@ -253,10 +262,10 @@ export const Achievements: React.FC<AchievementsProps> = ({
         <div className="mt-6 sm:mt-8 glass-card p-4 sm:p-6">
           <h3 className="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4">Achievement Progress</h3>
           <div className="space-y-3 sm:space-y-4">
-            {Object.entries(categoryStats).map(([category, stats]) => {
+            {Object.entries(categoryStats).map(([category]) => {
               const Icon = categoryIcons[category as keyof typeof categoryIcons];
               const totalInCategory = achievements.filter(a => a.category === category).length;
-              const unlockedInCategory = achievements.filter(a => a.category === category && a.unlockedAt.getTime() > 0).length;
+              const unlockedInCategory = achievements.filter(a => a.category === category && toTime(a.unlockedAt) > 0).length;
               const progress = totalInCategory > 0 ? (unlockedInCategory / totalInCategory) * 100 : 0;
               
               return (

@@ -5,6 +5,7 @@
 
 import { ttsService, defaultTTSConfig } from '../services/ttsService';
 import { useAudioStory } from '../hooks/useAudioStory';
+import { useGameSocket } from '../hooks/useGameSocket';
 
 // Example 1: Basic Setup
 export const setupBasicTTS = () => {

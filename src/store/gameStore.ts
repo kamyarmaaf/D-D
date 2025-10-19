@@ -48,58 +48,58 @@ interface GameStore {
   resetGame: () => void;
 }
 
-const initialPlayer: Player = {
-  id: '',
-  nickname: '',
-  age: 0,
-  genre: 'Fantasy',
-  score: 0,
-  titles: [],
-  isHost: false,
-  achievements: [],
-  level: 1,
-  experience: 0
-};
+// const initialPlayer: Player = {
+//   id: '',
+//   nickname: '',
+//   age: 0,
+//   genre: 'Fantasy',
+//   score: 0,
+//   titles: [],
+//   isHost: false,
+//   achievements: [],
+//   level: 1,
+//   experience: 0
+// };
 
-const initialCharacter: Character = {
-  id: '',
-  name: '',
-  class: {
-    name: 'Fighter',
-    description: 'A master of weapons and armor',
-    hitDie: 10,
-    primaryAbility: ['strength'],
-    savingThrowProficiencies: ['strength'],
-    skillProficiencies: ['athletics'],
-    features: ['Fighting Style']
-  },
-  race: {
-    name: 'Human',
-    description: 'Versatile and ambitious',
-    abilityScoreIncrease: { strength: 1, dexterity: 1, constitution: 1, intelligence: 1, wisdom: 1, charisma: 1 },
-    size: 'Medium',
-    speed: 30,
-    traits: ['Extra Language'],
-    languages: ['Common']
-  },
-  stats: {
-    strength: 10,
-    dexterity: 10,
-    constitution: 10,
-    intelligence: 10,
-    wisdom: 10,
-    charisma: 10,
-    hitPoints: 10,
-    maxHitPoints: 10,
-    armorClass: 10,
-    speed: 30
-  },
-  inventory: [],
-  spells: [],
-  equipment: { accessories: [] },
-  backstory: '',
-  avatar: '🧙‍♂️'
-};
+// const initialCharacter: Character = {
+//   id: '',
+//   name: '',
+//   class: {
+//     name: 'Fighter',
+//     description: 'A master of weapons and armor',
+//     hitDie: 10,
+//     primaryAbility: ['strength'],
+//     savingThrowProficiencies: ['strength'],
+//     skillProficiencies: ['athletics'],
+//     features: ['Fighting Style']
+//   },
+//   race: {
+//     name: 'Human',
+//     description: 'Versatile and ambitious',
+//     abilityScoreIncrease: { strength: 1, dexterity: 1, constitution: 1, intelligence: 1, wisdom: 1, charisma: 1 },
+//     size: 'Medium',
+//     speed: 30,
+//     traits: ['Extra Language'],
+//     languages: ['Common']
+//   },
+//   stats: {
+//     strength: 10,
+//     dexterity: 10,
+//     constitution: 10,
+//     intelligence: 10,
+//     wisdom: 10,
+//     charisma: 10,
+//     hitPoints: 10,
+//     maxHitPoints: 10,
+//     armorClass: 10,
+//     speed: 30
+//   },
+//   inventory: [],
+//   spells: [],
+//   equipment: { accessories: [] },
+//   backstory: '',
+//   avatar: '🧙‍♂️'
+// };
 
 export const useGameStore = create<GameStore>()(
   devtools(

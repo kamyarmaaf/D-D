@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Play, Pause, Square, Volume2, VolumeX, SkipForward, Settings, Mic, MicOff } from 'lucide-react';
+import { Play, Pause, Square, Volume2, SkipForward, Settings, Mic, MicOff } from 'lucide-react';
 import { useAudioStory, useTTSSettings } from '../hooks/useAudioStory';
 import { useLanguage } from '../hooks/useLanguage';
 

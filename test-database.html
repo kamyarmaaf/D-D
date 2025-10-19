@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست دیتابیس Supabase</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #667eea;
+            text-align: center;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        .result {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            border-right: 4px solid #667eea;
+        }
+        .success {
+            border-right-color: #28a745;
+            background: #d4edda;
+        }
+        .error {
+            border-right-color: #dc3545;
+            background: #f8d7da;
+        }
+        .code {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin: 10px 0;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 36px;
+            font-weight: bold;
+        }
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎲 تست دیتابیس D&D Bolt</h1>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <button onclick="testConnection()">🔌 تست اتصال</button>
+            <button onclick="testRead()">📖 تست خواندن</button>
+            <button onclick="testCreate()">➕ تست ایجاد اتاق</button>
+            <button onclick="showStats()">📊 نمایش آمار</button>
+            <button onclick="clearResults()">🗑️ پاک کردن</button>
+        </div>
+
+        <div id="results"></div>
+        <div id="stats" class="stats"></div>
+    </div>
+
+    <script>
+        // تنظیمات Supabase
+        const supabaseUrl = 'https://fxumrywaxagueiqlovgg.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ4dW1yeXdheGFndWVpcWxvdmdnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkxNzQyODksImV4cCI6MjA3NDc1MDI4OX0.zVfqMUk2vhQnWhufG7biVwos1S785Xak4kr1zmXAK-4';
+        
+        const { createClient } = supabase;
+        const supabaseClient = createClient(supabaseUrl, supabaseKey);
+
+        function addResult(message, isSuccess = true, data = null) {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${isSuccess ? 'success' : 'error'}`;
+            
+            let html = `<strong>${isSuccess ? '✅' : '❌'} ${message}</strong>`;
+            if (data) {
+                html += `<div class="code">${JSON.stringify(data, null, 2)}</div>`;
+            }
+            div.innerHTML = html;
+            results.insertBefore(div, results.firstChild);
+        }
+
+        async function testConnection() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('rooms')
+                    .select('count');
+                
+                if (error) throw error;
+                addResult('اتصال به Supabase موفق بود!', true, { status: 'Connected', timestamp: new Date().toLocaleString('fa-IR') });
+            } catch (error) {
+                addResult(`خطا در اتصال: ${error.message}`, false, error);
+            }
+        }
+
+        async function testRead() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('rooms')
+                    .select('*')
+                    .limit(5);
+                
+                if (error) throw error;
+                addResult(`${data.length} اتاق یافت شد`, true, data);
+            } catch (error) {
+                addResult(`خطا در خواندن: ${error.message}`, false, error);
+            }
+        }
+
+        async function testCreate() {
+            const testRoomCode = 'TEST' + Math.floor(Math.random() * 1000);
+            try {
+                // ایجاد اتاق
+                const { data: room, error: roomError } = await supabaseClient
+                    .from('rooms')
+                    .insert([{
+                        id: 'test_' + Date.now(),
+                        code: testRoomCode,
+                        status: 'waiting',
+                        max_players: 6,
+                        selected_genre: 'fantasy',
+                        host_player_id: null,
+                        current_stage: 1,
+                        max_stages: 5,
+                        is_game_active: false
+                    }])
+                    .select()
+                    .single();
+                
+                if (roomError) throw roomError;
+                
+                addResult(`اتاق جدید با کد ${testRoomCode} ساخته شد!`, true, room);
+                
+                // حذف اتاق تست
+                setTimeout(async () => {
+                    await supabaseClient
+                        .from('rooms')
+                        .delete()
+                        .eq('id', room.id);
+                    addResult(`اتاق تست ${testRoomCode} پاک شد`, true);
+                }, 2000);
+                
+            } catch (error) {
+                addResult(`خطا در ایجاد: ${error.message}`, false, error);
+            }
+        }
+
+        async function showStats() {
+            try {
+                const tables = ['rooms', 'players', 'characters', 'game_sessions', 'messages', 'inventory_items', 'achievements'];
+                const statsDiv = document.getElementById('stats');
+                statsDiv.innerHTML = '';
+                
+                for (const table of tables) {
+                    const { count, error } = await supabaseClient
+                        .from(table)
+                        .select('*', { count: 'exact', head: true });
+                    
+                    if (!error) {
+                        const card = document.createElement('div');
+                        card.className = 'stat-card';
+                        card.innerHTML = `
+                            <div class="stat-number">${count || 0}</div>
+                            <div class="stat-label">${table}</div>
+                        `;
+                        statsDiv.appendChild(card);
+                    }
+                }
+                
+                addResult('آمار دیتابیس نمایش داده شد', true);
+            } catch (error) {
+                addResult(`خطا در نمایش آمار: ${error.message}`, false, error);
+            }
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('stats').innerHTML = '';
+        }
+
+        // تست اتصال خودکار
+        window.onload = () => {
+            addResult('صفحه تست دیتابیس بارگذاری شد. روی دکمه‌ها کلیک کنید تا تست‌ها را شروع کنید.', true);
+        };
+    </script>
+</body>
+</html>
+

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sword, Shield, Zap, Heart, BrainCircuit, Eye, Star, User, ArrowRight, Dice6 } from 'lucide-react';
+import { Sword, Zap, Heart, BrainCircuit, Eye, Star, User, ArrowRight, Dice6, CheckCircle2 } from 'lucide-react';
 import { Character, CharacterClass, CharacterRace, CharacterStats } from '../types/game';
 import { useLanguage } from '../hooks/useLanguage';
 
@@ -180,17 +180,36 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
                 <button
                   key={charClass.name}
                   onClick={() => handleClassSelect(charClass)}
-                  className={`group glass-card p-4 sm:p-6 lg:p-8 text-left hover:scale-105 transition-all duration-300 ${
-                    selectedClass?.name === charClass.name ? 'border-purple-500/50 bg-purple-900/20' : ''
+                  className={`group glass-card p-4 sm:p-6 lg:p-8 text-left hover:scale-105 transition-all duration-300 relative overflow-hidden ${
+                    selectedClass?.name === charClass.name 
+                      ? 'border-4 border-purple-500 bg-gradient-to-br from-purple-900/30 to-indigo-900/30 shadow-xl shadow-purple-500/50 ring-2 ring-purple-400' 
+                      : 'border-2 border-transparent hover:border-purple-300/30'
                   }`}
                 >
+                  {/* Selected indicator */}
+                  {selectedClass?.name === charClass.name && (
+                    <div className="absolute top-2 right-2 sm:top-4 sm:right-4 bg-purple-500 rounded-full p-1 sm:p-2 animate-bounce">
+                      <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+                    </div>
+                  )}
+                  
                   <div className="flex items-center space-x-4 mb-4">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-amber-500/30 to-yellow-500/30 rounded-xl flex items-center justify-center">
-                      <Sword className="h-5 w-5 sm:h-6 sm:w-6 text-ink-muted" />
+                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${
+                      selectedClass?.name === charClass.name
+                        ? 'bg-gradient-to-br from-purple-500/50 to-indigo-500/50 ring-2 ring-purple-400'
+                        : 'bg-gradient-to-br from-amber-500/30 to-yellow-500/30'
+                    }`}>
+                      <Sword className={`h-5 w-5 sm:h-6 sm:w-6 transition-colors duration-300 ${
+                        selectedClass?.name === charClass.name ? 'text-white' : 'text-ink-muted'
+                      }`} />
                     </div>
                     <div>
-                      <h3 className="text-lg sm:text-xl font-bold text-ink">{charClass.name}</h3>
-                      <p className="text-sm text-purple-600">Hit Die: d{charClass.hitDie}</p>
+                      <h3 className={`text-lg sm:text-xl font-bold transition-colors duration-300 ${
+                        selectedClass?.name === charClass.name ? 'text-purple-400' : 'text-ink'
+                      }`}>{charClass.name}</h3>
+                      <p className={`text-sm transition-colors duration-300 ${
+                        selectedClass?.name === charClass.name ? 'text-purple-300 font-semibold' : 'text-purple-600'
+                      }`}>Hit Die: d{charClass.hitDie}</p>
                     </div>
                   </div>
                   <p className="text-ink mb-4">{charClass.description}</p>
@@ -219,17 +238,36 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
                 <button
                   key={race.name}
                   onClick={() => handleRaceSelect(race)}
-                  className={`group glass-card p-4 sm:p-6 lg:p-8 text-left hover:scale-105 transition-all duration-300 ${
-                    selectedRace?.name === race.name ? 'border-cyan-500/50 bg-cyan-900/20' : ''
+                  className={`group glass-card p-4 sm:p-6 lg:p-8 text-left hover:scale-105 transition-all duration-300 relative overflow-hidden ${
+                    selectedRace?.name === race.name 
+                      ? 'border-4 border-cyan-500 bg-gradient-to-br from-cyan-900/30 to-blue-900/30 shadow-xl shadow-cyan-500/50 ring-2 ring-cyan-400' 
+                      : 'border-2 border-transparent hover:border-cyan-300/30'
                   }`}
                 >
+                  {/* Selected indicator */}
+                  {selectedRace?.name === race.name && (
+                    <div className="absolute top-2 right-2 sm:top-4 sm:right-4 bg-cyan-500 rounded-full p-1 sm:p-2 animate-bounce">
+                      <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+                    </div>
+                  )}
+                  
                   <div className="flex items-center space-x-4 mb-4">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-amber-500/30 to-yellow-500/30 rounded-xl flex items-center justify-center">
-                      <User className="h-5 w-5 sm:h-6 sm:w-6 text-ink-muted" />
+                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${
+                      selectedRace?.name === race.name
+                        ? 'bg-gradient-to-br from-cyan-500/50 to-blue-500/50 ring-2 ring-cyan-400'
+                        : 'bg-gradient-to-br from-amber-500/30 to-yellow-500/30'
+                    }`}>
+                      <User className={`h-5 w-5 sm:h-6 sm:w-6 transition-colors duration-300 ${
+                        selectedRace?.name === race.name ? 'text-white' : 'text-ink-muted'
+                      }`} />
                     </div>
                     <div>
-                      <h3 className="text-lg sm:text-xl font-bold text-ink">{race.name}</h3>
-                      <p className="text-sm text-cyan-600">Size: {race.size} | Speed: {race.speed}ft</p>
+                      <h3 className={`text-lg sm:text-xl font-bold transition-colors duration-300 ${
+                        selectedRace?.name === race.name ? 'text-cyan-400' : 'text-ink'
+                      }`}>{race.name}</h3>
+                      <p className={`text-sm transition-colors duration-300 ${
+                        selectedRace?.name === race.name ? 'text-cyan-300 font-semibold' : 'text-cyan-600'
+                      }`}>Size: {race.size} | Speed: {race.speed}ft</p>
                     </div>
                   </div>
                   <p className="text-ink mb-4">{race.description}</p>
@@ -309,7 +347,7 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
                   type="text"
                   value={character.name}
                   onChange={(e) => setCharacter(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-4 py-3 bg-amber-50/80 border border-purple-500/30 rounded-xl text-ink placeholder-ink-muted focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300 text-base backdrop-blur-sm"
+                  className="w-full px-4 py-3 bg-amber-50/80 dark:bg-parchment/20 border border-purple-500/30 dark:border-purple-500/50 rounded-xl text-ink dark:text-black placeholder-ink-muted dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300 text-base backdrop-blur-sm"
                   placeholder="Enter your character's name"
                 />
               </div>
@@ -338,7 +376,7 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
                 <textarea
                   value={character.backstory}
                   onChange={(e) => setCharacter(prev => ({ ...prev, backstory: e.target.value }))}
-                  className="w-full px-4 py-3 bg-amber-50/80 border border-purple-500/30 rounded-xl text-ink placeholder-ink-muted focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300 text-base backdrop-blur-sm resize-none"
+                  className="w-full px-4 py-3 bg-amber-50/80 dark:bg-parchment/20 border border-purple-500/30 dark:border-purple-500/50 rounded-xl text-ink dark:text-black placeholder-ink-muted dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300 text-base backdrop-blur-sm resize-none"
                   rows={4}
                   placeholder="Tell us about your character's background..."
                 />
